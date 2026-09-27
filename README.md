@@ -17,6 +17,7 @@
 
 ## News
 
+- **2026-09-27** — Plumb v2: +2.7 points on never-seen DecisionBench families, JevBench hard 0.514 → 0.622, held-out hard-skill templates 0.516 → 0.750, fitted temperature in the head. Merged bf16 weights replace v1 on the Hub (v1 kept at tag `v1`).
 - **2026-09-27** — Plumb v1 released: Nemotron 3.5 Lightning 30B-A3B trunk, LM head removed, pointer readout. Evaluated on six held-out DecisionBench task families and the JevBench public tiers. Weights on the Hub.
 
 ## About
@@ -98,25 +99,27 @@ Requirements: a CUDA GPU with ~64 GB of memory in bf16 (one 80 GB card, or two 4
 
 ## Models
 
-| Model | Base | Accuracy new / trained | Brier new / trained | Coverage @ 5% error | Runs on | |
+| Model | Base | Accuracy new / trained | Brier new / trained | Coverage @ 5% error, new / trained | Runs on | |
 |---|---|:---:|:---:|:---:|---|---|
-| **Plumb v1** | Nemotron 3.5 Lightning 30B-A3B | 0.703 / 0.846 | 0.412 / 0.217 | 0.216 / 0.753 | 1× 80 GB, or 2× 40 GB | [Model card](https://huggingface.co/totum-labs/plumb-nemotron-3.5-lightning-30b-a3b) |
+| **Plumb v2** | Nemotron 3.5 Lightning 30B-A3B | **0.730 / 0.839** | 0.412 / 0.219 | 0.44 / 0.73 | 1× 80 GB, or 2× 40 GB | [Model card](https://huggingface.co/totum-labs/plumb-nemotron-3.5-lightning-30b-a3b) |
+| Plumb v1 | Nemotron 3.5 Lightning 30B-A3B | 0.703 / 0.846 | 0.412 / 0.217 | 0.46 / 0.75 | 1× 80 GB, or 2× 40 GB | [tag `v1`](https://huggingface.co/totum-labs/plumb-nemotron-3.5-lightning-30b-a3b/tree/v1) |
 
-DecisionBench rows. **New** is six task families the model never saw (routing_triage, document_workflows, guardrails_moderation, risk_scoring, triage, content_moderation; 6,966 rows) — the closest thing here to your own questions. **Trained** is held-out rows from the 21 families it trained on. Brier scores the whole distribution, lower is better; coverage is the share of decisions that can be automated at a 5% error budget. Split definitions ship with [totum-labs/plumb-data](https://huggingface.co/datasets/totum-labs/plumb-data).
+DecisionBench rows. **New** is six task families the model never saw (routing_triage, document_workflows, guardrails_moderation, risk_scoring, triage, content_moderation; 6,966 rows) — the closest thing here to your own questions. **Trained** is held-out rows from the 21 families it trained on. Brier scores the whole distribution, lower is better. Coverage is the share of decisions that can be automated at a 5% error budget, averaged over families; pooled over rows it is 0.02 for v2 and 0.22 for v1, the difference being one ordinal task (`toxicity_severity`) that every model here answers at chance and v2 answers confidently — see the model card. Split definitions ship with [totum-labs/plumb-data](https://huggingface.co/datasets/totum-labs/plumb-data).
 
 `Plumber(model)` accepts a merged release (Hub id or directory) or an un-merged plumb directory (`adapter/` + `head.pt`), which it stacks on the base trunk.
 
 ## Benchmarks
 
-Plumb v1, evaluated on data excluded from training. Comparator values are the benchmarks' published records; protocols and per-family results are on the [model card](https://huggingface.co/totum-labs/plumb-nemotron-3.5-lightning-30b-a3b).
+Evaluated on data excluded from training. Comparator values are the benchmarks' published records; protocols, per-family and per-skill results are on the [model card](https://huggingface.co/totum-labs/plumb-nemotron-3.5-lightning-30b-a3b).
 
-| Benchmark | Metric | Plumb v1 | Jev 1.13 |
-|---|---|---:|---:|
-| DecisionBench, 6 held-out task families (6,966 rows) | accuracy, micro / macro | 0.703 / 0.767 | 0.657 / 0.668 |
-| | ECE | 0.067 | 0.128 |
-| JevBench public, hard tier (111) | accuracy | 0.514 | 0.741 |
-| JevBench public, easy / standard | accuracy | 1.000 / 0.967 | 1.000 / 0.990 |
-| JevBench, server-side latency | p50 | 0.173 s | 0.652 s |
+| Benchmark | Metric | Plumb v2 | Plumb v1 | Jev 1.13 |
+|---|---|---:|---:|---:|
+| DecisionBench, 6 never-seen families (6,966 rows) | accuracy, micro / macro | **0.730 / 0.786** | 0.703 / 0.767 | 0.657 / 0.668 |
+| | ECE | 0.074 | 0.067 | 0.128 |
+| JevBench public, hard tier (111) | accuracy | 0.622 | 0.514 | 0.741 |
+| JevBench public, easy / standard | accuracy | 1.000 / 0.972 | 1.000 / 0.931 | 1.000 / 0.990 |
+| Kev hard skills, held-out templates (1,550) | accuracy | **0.750** | 0.516 | – |
+| JevBench, server-side latency | p50 | 0.173 s | 0.173 s | 0.652 s |
 
 ## API
 
@@ -182,6 +185,16 @@ The LM head is dropped at load. LoRA targets are chosen from the architecture (`
 | [Qwen3.8-27B](https://huggingface.co/Qwen/Qwen3.8-27B) | planned |
 | [Gemma 4 26B-A4B](https://huggingface.co/google/gemma-4-26B-A4B) | planned |
 
+### The recipe
+
+`plumber.data.recipe` builds a balanced training set from the converters in `plumber/data/`: a capped number of rows from each of ~200 task families plus a sample of solver-labelled hard-skill rows. **small** (20 rows/family, ~5k rows) trains a 4B-class base in about 5 minutes on one A100; **large** (60/family, ~13k rows) in about 15. The same recipe on different bases gives comparable plumbs; [docs/recipes.md](docs/recipes.md) has the sources, commands and evaluation protocol.
+
+```bash
+python -m plumber.data.recipe --size large --rows data/decisionbench/train.jsonl data/tasksource/rows.jsonl --hard data/kev_hard/train.jsonl --out data/recipe/large
+plumber plumbify --base Qwen/Qwen3.5-4B --rows data/recipe/large/train.jsonl --dev data/recipe/large/dev.jsonl --out runs/qwen3.5-4b --epochs 1 --tokens_per_batch 16384 --max_len 8192
+plumber eval     --base Qwen/Qwen3.5-4B --ckpt runs/qwen3.5-4b/final --rows data/decisionbench/test_ood.jsonl --out runs/qwen3.5-4b/final/eval_new
+```
+
 ## Repository Layout
 
 ```
@@ -192,14 +205,14 @@ plumber/
   cli.py         plumber serve | decide | plumbify | train | eval | calibrate | export
   core/          rendering, heads, trunk, LoRA targets
   training/      train, eval, calibrate, export
-  data/          converters, splits, contamination screen
+  data/          converters, splits, contamination screen, recipe
   client.py      HTTP client for a served model
   metrics.py     accuracy, NLL, Brier, ECE, coverage
 tests/
 examples/      quickstart.py, client.py
 evals/         DecisionBench and JevBench runners
 benchmarks/    serving latency vs. questions per request
-docs/          api.md, serving.md, training.md
+docs/          api.md, serving.md, training.md, recipes.md
 ```
 
 ## Citation
