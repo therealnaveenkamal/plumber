@@ -46,8 +46,8 @@ Prefer one GPU whenever the trunk fits: `device_map="auto"` across two GPUs is s
 ## 4. Evaluate, calibrate, serve
 
 ```bash
-plumber eval --ckpt runs/qwen3.5-4b/final --rows data/decisionbench/test_ood.jsonl \
-  --out runs/qwen3.5-4b/eval_new
+plumber eval --ckpt runs/qwen3.5-4b/final \
+  --rows data/decisionbench/test_ood.jsonl --out runs/qwen3.5-4b/eval_new
 plumber eval --ckpt runs/qwen3.5-4b/final --rows data/kev_hard/test.jsonl \
   --out runs/qwen3.5-4b/eval_hard
 plumber eval --ckpt runs/qwen3.5-4b/final --rows data/recipe/large/dev.jsonl \
