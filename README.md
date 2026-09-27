@@ -30,7 +30,8 @@ Plumber is built for decisions, not chat:
 - **Calibrated probabilities** over options, with a chance-corrected confidence, for every question type.
 - **Prefix caching.** A request carries any number of questions; the state is encoded once and its cache — attention KV and Mamba recurrent states — is forked to every question.
 - **Long states.** 32k-token training window on a 256k-context trunk.
-- **Jev-compatible server.** `POST /v1/systemone` with the TypeSafe request and response schema.
+- **Drop-in for Jev.** `POST /v1/systemone` with the System One request and response schema; the official `typesafe_sdk` client works against a Plumb server unchanged.
+- **Plumbify.** A Plumb model is an adapter and a 17M-parameter head on an unchanged open-weight LLM. `plumber plumbify --base <hf id>` builds one on any causal LM.
 
 ## Getting Started
 
@@ -74,13 +75,34 @@ curl localhost:8123/v1/systemone -H 'content-type: application/json' -d '{
   }}'
 ```
 
+If you already call Jev, point the TypeSafe client at Plumber and keep the rest of your code:
+
+```python
+from typesafe_sdk import Choice, Noul, Score, TypeSafeClient
+
+client = TypeSafeClient(api_key="local", base_url="http://127.0.0.1:8123", model="plumb")
+response = client.system_one(
+    state="I was charged twice for my subscription. Fix this today or I cancel.",
+    questions={
+        "billing": Noul(instructions="Is this ticket about billing?"),
+        "tone": Choice(instructions="What is the customer's tone?",
+                       criteria={"calm": None, "frustrated": None, "angry": None}),
+        "urgency": Score(instructions="How urgent is this ticket?",
+                         criteria=["can wait", "this week", "today"]),
+    },
+)
+print(response.nouls["billing"].noul, response.choices["tone"].choice, response.scores["urgency"].score)
+```
+
 Requirements: a CUDA GPU with ~64 GB of memory in bf16 (one 80 GB card, or two 40 GB+ cards with `device_map="auto"`); `mamba_ssm` and `causal_conv1d` for the fast path. Python 3.10+, transformers ≥ 5.17.
 
-## Supported Models
+## Models
 
-| Model | Trunk | Context | Weights |
-|---|---|---|---|
-| Plumb v1 | Nemotron 3.5 Lightning 30B-A3B (Mamba-2 / MoE / attention hybrid) | 32k trained, 256k native | [totum-labs/plumb-nemotron-3.5-lightning-30b-a3b](https://huggingface.co/totum-labs/plumb-nemotron-3.5-lightning-30b-a3b) |
+| Model | Base | Accuracy new / trained | Brier new / trained | Coverage @ 5% error | Runs on | |
+|---|---|:---:|:---:|:---:|---|---|
+| **Plumb v1** | Nemotron 3.5 Lightning 30B-A3B | 0.703 / 0.846 | 0.412 / 0.217 | 0.216 / 0.753 | 1× 80 GB, or 2× 40 GB | [Model card](https://huggingface.co/totum-labs/plumb-nemotron-3.5-lightning-30b-a3b) |
+
+DecisionBench rows. **New** is six task families the model never saw (routing_triage, document_workflows, guardrails_moderation, risk_scoring, triage, content_moderation; 6,966 rows) — the closest thing here to your own questions. **Trained** is held-out rows from the 21 families it trained on. Brier scores the whole distribution, lower is better; coverage is the share of decisions that can be automated at a 5% error budget. Split definitions ship with [totum-labs/plumb-data](https://huggingface.co/datasets/totum-labs/plumb-data).
 
 `Plumber(model)` accepts a merged release (Hub id or directory) or an un-merged adapter directory, which it stacks on the base trunk.
 
@@ -96,6 +118,18 @@ Plumb v1, evaluated on data excluded from training. Comparator values are the be
 | JevBench public, easy / standard | accuracy | 1.000 / 0.967 | 1.000 / 0.990 |
 | JevBench, server-side latency | p50 | 0.173 s | 0.652 s |
 
+## API
+
+`POST /v1/systemone` — `state` (string, object or array), `model`, and `questions` keyed by an id the model never sees.
+
+| Type | `criteria` | Answer |
+|---|---|---|
+| `noul` | optional descriptions for `true` and `false` | `noul`: P(yes); `probabilities` over `{no, yes}`, `confidence` |
+| `choice` | `{option: description \| null}` | `choice`, `probabilities` over the options, `confidence` |
+| `score` | ordered list of level descriptions | `score`: expected level index from 0; `legend`, `probabilities`, `confidence` |
+
+Confidence is the reference adapter's: `(p_max − 1/K) / (1 − 1/K)` for `choice` and `noul`; `max(0, 1 − E|level − mode| / D)` for `score`, with `D` the mean absolute deviation of a uniform distribution over the levels. Neither is an accuracy estimate — the calibrated quantity is `probabilities`. Invalid requests return `422`; `usage.output_tokens` is 0 because nothing is generated; `latency_ms` is model time. `GET /v1/models` lists the loaded model. `PLUMBER_API_KEY` requires `Authorization: Bearer <key>` on `/v1/*`, which the TypeSafe clients always send; the server binds to `127.0.0.1` unless `--host 0.0.0.0`.
+
 ## How It Works
 
 ```
@@ -106,18 +140,56 @@ z_k = ⟨W_q q, W_o o_k⟩ / √d′ + u·o_k        p = softmax(z)
 
 One sequence per question. The trunk is Nemotron 3.5 Lightning with the LM head removed; a 17M-parameter pointer head scores each option's hidden state against the decision position. `noul` is the two-option case of `choice`, so `P(yes) + P(no) = 1` exactly. `score` reads the level descriptions as options and returns the expected level. Training adapts the trunk with LoRA on the Mamba, attention and shared-expert projections; routed experts stay frozen.
 
-## Training
+## Fine-Tune on Your Own Data
 
-`plumber train` fits the LoRA adapter and readout head on rows in the `Row` schema (`plumber/core/rendering.py`) with length-bucketed token-budget batches up to 32k tokens; `plumber eval` reports accuracy, NLL and ECE per family with per-row predictions; `plumber export` merges an adapter into the trunk and writes a release. Converters for DecisionBench, tasksource and Kev hard-skill data, the leave-families-out split and a contamination screen live in `plumber/data/`; the released training data and split definitions are on the Hub at [totum-labs/plumb-data](https://huggingface.co/datasets/totum-labs/plumb-data).
+Training rows are API requests with a `label` on every question — the same JSON your code already sends, one request per line:
+
+```jsonl
+{"state": {"subject": "Charged twice", "body": "I see two charges for order #4411. Please refund one."},
+ "questions": {
+   "team":     {"type": "choice", "instructions": "Which team should handle this?",
+                "criteria": {"billing": "Payments and refunds", "shipping": "Delivery problems"}, "label": "billing"},
+   "angry":    {"type": "noul",   "instructions": "Is the customer angry?", "label": false},
+   "priority": {"type": "score",  "instructions": "How urgent is this?", "criteria": ["low", "normal", "high"], "label": 1}}}
+```
+
+`choice` labels are the option name, `noul` labels `true`/`false`, `score` labels the level's position from 0. Keep 10–20% aside for evaluation. Continue from the released adapter (`adapter/` plus `head.pt` from the model repo) so the model keeps what it knows, then evaluate, merge and serve:
+
+```bash
+plumber train  --rows train.jsonl --dev heldout.jsonl --out runs/mine --init_from <adapter dir> \
+               --epochs 2 --lr 2e-5 --tokens_per_batch 32768 --max_len 32768
+plumber eval   --ckpt runs/mine/final --rows heldout.jsonl --out runs/mine/eval    # accuracy, NLL, Brier, ECE, coverage
+plumber export --ckpt runs/mine/final --out release/mine                           # merged bf16 trunk + head.pt
+plumber serve  --model release/mine
+```
+
+Option order is shuffled every pass, so the head learns the options rather than their positions. Batches are built to a token budget, so 32k-token states train alongside short ones. Rows in the internal `Row` schema (`plumber/core/rendering.py`) are accepted too; the converters, leave-families-out split and contamination screen behind the released data live in `plumber/data/`.
+
+## Plumbify Any Model
+
+The recipe above is not specific to Nemotron. `plumber plumbify` fits the adapter and head on any Hugging Face causal LM:
+
+```bash
+plumber plumbify --base Qwen/Qwen3.8-27B --rows train.jsonl --dev dev.jsonl --out runs/qwen3.8-27b
+```
+
+The LM head is dropped at load. LoRA targets are chosen from the architecture (`plumber/core/targets.py`): Mamba and DeltaNet `in_proj`, attention `q/k/v/o`, dense and shared-expert MLP projections; routed experts stay frozen. Training refuses to start unless at least 90% of the trunk's layers received an adapter, so an unrecognised architecture fails before it burns GPU time rather than training a head alone. The result runs through the same engine, server and SDK.
+
+| Base | Adapter |
+|---|---|
+| [Nemotron 3.5 Lightning 30B-A3B](https://huggingface.co/nvidia/NVIDIA-Nemotron-3.5-Lightning-30B-A3B-BF16) | Plumb v1 — released |
+| [Qwen3.8-27B](https://huggingface.co/Qwen/Qwen3.8-27B) | planned |
+| [Gemma 4 26B-A4B](https://huggingface.co/google/gemma-4-26B-A4B) | planned |
 
 ## Repository Layout
 
 ```
 plumber/
   engine.py      Plumber — decide, choice, noul, score
+  contract.py    System One contract: questions -> rows, probabilities -> answers
   server.py      POST /v1/systemone
-  cli.py         plumber serve | decide | eval | train | export
-  core/          rendering, heads, trunk
+  cli.py         plumber serve | decide | plumbify | train | eval | export
+  core/          rendering, heads, trunk, LoRA targets
   training/      train, eval, export
   data/          converters, splits, contamination screen
   client.py      HTTP client for a served model

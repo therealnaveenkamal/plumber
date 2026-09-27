@@ -1,7 +1,7 @@
 """Evaluate a trained plumb checkpoint (LoRA adapter dir + head.pt) on a rows.jsonl.
 
   python -m plumber.training.eval --ckpt runs/v0/step800 --rows data/ood_v0/test_ood.jsonl --out runs/v0/eval_ood
-Writes preds.jsonl (one line per row) and metrics.json (micro/macro acc, NLL, ECE, per-family, per-primitive).
+Writes preds.jsonl (one line per row) and metrics.json (accuracy, NLL, Brier, ECE, coverage at 5% error; per-family, per-primitive).
 """
 
 from __future__ import annotations
@@ -16,24 +16,8 @@ import torch
 
 from ..core.rendering import render
 from ..core.trunk import PlumbModel, collate
+from ..metrics import summarize
 from .train import load_rows
-
-
-def ece(conf, correct, bins=15):
-    n = len(conf)
-    tot = 0.0
-    for b in range(bins):
-        lo, hi = b / bins, (b + 1) / bins
-        idx = [i for i, c in enumerate(conf) if lo < c <= hi]
-        if idx:
-            tot += (
-                len(idx)
-                / n
-                * abs(
-                    sum(correct[i] for i in idx) / len(idx) - sum(conf[i] for i in idx) / len(idx)
-                )
-            )
-    return tot
 
 
 def main():
@@ -105,30 +89,14 @@ def main():
         d = collections.defaultdict(list)
         for q in scored:
             d[q[key]].append(q)
-        out = {}
-        for k, v in d.items():
-            out[k] = {
-                "n": len(v),
-                "acc": sum(q["correct"] for q in v) / len(v),
-                "nll": float(
-                    -sum(torch.log(torch.tensor(max(q["p_gold"], 1e-9))) for q in v) / len(v)
-                ),
-                "ece": ece([q["p_max"] for q in v], [q["correct"] for q in v]),
-            }
-        return out
+        return {k: _stats(v) for k, v in d.items()}
 
     fam = group("family")
     prim = group("primitive")
     metrics = {
-        "n": len(scored),
+        **_stats(scored),
         "skipped_too_long": skipped,
-        "micro_acc": sum(q["correct"] for q in scored) / max(len(scored), 1),
         "macro_family_acc": sum(v["acc"] for v in fam.values()) / max(len(fam), 1),
-        "nll": float(
-            -sum(torch.log(torch.tensor(max(q["p_gold"], 1e-9))) for q in scored)
-            / max(len(scored), 1)
-        ),
-        "ece": ece([q["p_max"] for q in scored], [q["correct"] for q in scored]),
         "per_family": fam,
         "per_primitive": prim,
         "seconds": time.time() - t0,
@@ -140,7 +108,16 @@ def main():
         )
     )
     for k, v in sorted(fam.items(), key=lambda kv: -kv[1]["n"]):
-        print(f"  {k:32} n={v['n']:5d} acc={v['acc']:.4f} nll={v['nll']:.3f} ece={v['ece']:.3f}")
+        print(
+            f"  {k:32} n={v['n']:5d} acc={v['acc']:.4f} brier={v['brier']:.3f} nll={v['nll']:.3f} ece={v['ece']:.3f} cov@5%={v['coverage_at_5pct_error']:.3f}"
+        )
+
+
+def _stats(rows):
+    m = summarize(rows)
+    m["acc"] = m.pop("accuracy", 0.0)
+    m["micro_acc"] = m["acc"]
+    return m
 
 
 if __name__ == "__main__":

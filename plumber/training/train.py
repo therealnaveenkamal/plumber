@@ -308,12 +308,12 @@ def main():
                 f"[epoch {ep}] dev {evaluate(model, tok, dev_rows, pad_id, a.bsz, a.max_len)}",
                 flush=True,
             )
-    save(model, a.out, step)
+    save(model, a.out, "final")
     print("[done]", flush=True)
 
 
 def save(model, out, step):
-    d = os.path.join(out, f"step{step}")
+    d = os.path.join(out, step if isinstance(step, str) else f"step{step}")
     os.makedirs(d, exist_ok=True)
     model.trunk.save_pretrained(d)  # LoRA adapter only
     torch.save(model.head.state_dict(), os.path.join(d, "head.pt"))
