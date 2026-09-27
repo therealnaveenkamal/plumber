@@ -10,11 +10,14 @@ from .engine import DEFAULT_BASE, Plumber
 def main(argv=None):
     argv = list(sys.argv[1:] if argv is None else argv)
     if not argv or argv[0] in ("-h", "--help"):
-        print("usage: plumber {serve,decide,eval,train,export} ...")
+        print("usage: plumber {serve,decide,plumbify,train,eval,export} ...")
         print("  serve   --model REPO --port 8123")
         print("  decide  --model REPO --state TEXT --question TEXT --options a,b,c [--desc ...]")
         print("  eval    --ckpt DIR --rows ROWS.jsonl --out DIR")
-        print("  train   --rows ROWS.jsonl --out DIR ...")
+        print(
+            "  plumbify --base HF_ID --rows ROWS.jsonl --out DIR   (adapter + head on any causal LM)"
+        )
+        print("  train   --rows ROWS.jsonl --out DIR ...             (same, Nemotron default)")
         print("  export  --ckpt DIR --out DIR --card README.md [--repo org/name]")
         return 0
     cmd, rest = argv[0], argv[1:]
@@ -32,6 +35,11 @@ def main(argv=None):
         from .training.train import main as m
 
         sys.argv = ["plumber train", *rest]
+        return m()
+    if cmd == "plumbify":  # train an adapter + head on any base LM = turn it into a decision model
+        from .training.train import main as m
+
+        sys.argv = ["plumber plumbify", *rest]
         return m()
     if cmd == "export":
         from .training.export import main as m

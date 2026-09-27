@@ -14,7 +14,8 @@ dependencies = ["torch>=2.6", "transformers>=5.17", "peft>=0.21", "accelerate>=1
 
 [project.optional-dependencies]
 data = ["datasets>=3.0", "pandas", "pyarrow", "tasksource"]
-dev = ["pytest", "ruff", "pre-commit"]
+dev = ["pytest", "ruff", "pre-commit", "typesafe-sdk"]
+sdk = ["typesafe-sdk"]
 
 [project.scripts]
 plumber = "plumber.cli:main"

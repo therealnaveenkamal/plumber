@@ -8,14 +8,14 @@ out["answers"]["department"]  ->  {"type": "choice", "choice": "billing", "proba
 
 from __future__ import annotations
 
-import json
 import os
 import time
 from typing import Any
 
 import torch
 
-from .core.rendering import Option, Row, render
+from .contract import answer, question_to_row
+from .core.rendering import render
 from .core.trunk import PlumbModel, collate
 
 DEFAULT_BASE = "nvidia/NVIDIA-Nemotron-3.5-Lightning-30B-A3B-BF16"
@@ -26,41 +26,6 @@ _DTYPES = {
     "fp16": torch.float16,
     "float32": torch.float32,
 }
-
-
-def state_text(state) -> str:
-    if isinstance(state, str):
-        return state
-    if isinstance(state, dict):
-        return "\n".join(
-            f"{k}: {v if isinstance(v, str) else json.dumps(v, ensure_ascii=False)}"
-            for k, v in state.items()
-        )
-    return json.dumps(state, ensure_ascii=False)
-
-
-def question_to_row(qid, q: dict, state) -> Row:
-    """Jev-shaped question -> Row. choice: criteria {name: description}; noul: optional {"true","false"}; score: [level descriptions]."""
-    t = q.get("type")
-    crit = q.get("criteria")
-    instr = q.get("instructions", "")
-    if t == "choice":
-        if isinstance(crit, dict):
-            opts = [Option(str(k), str(v or "")) for k, v in crit.items()]
-        elif isinstance(crit, list):
-            opts = [Option(str(k), "") for k in crit]
-        else:
-            raise ValueError(f"{qid}: choice needs criteria")
-    elif t == "noul":
-        c = crit if isinstance(crit, dict) else {}
-        opts = [Option("no", str(c.get("false") or "")), Option("yes", str(c.get("true") or ""))]
-    elif t == "score":
-        if not isinstance(crit, list) or not crit:
-            raise ValueError(f"{qid}: score needs a list of level descriptions")
-        opts = [Option(str(i), str(d)) for i, d in enumerate(crit)]
-    else:
-        raise ValueError(f"{qid}: unknown type {t!r}")
-    return Row(id=str(qid), state=state_text(state), question=instr, qtype=t, options=opts)
 
 
 class Plumber:
@@ -79,6 +44,7 @@ class Plumber:
 
         t0 = time.time()
         self.model_id = model
+        self.base = base
         self.max_len = max_len
         self.tok = AutoTokenizer.from_pretrained(model if _has_tokenizer(model) else base)
         self.pad = self.tok.pad_token_id if self.tok.pad_token_id is not None else 0
@@ -117,34 +83,9 @@ class Plumber:
             share_prefix = len(rows) > 1
         logits = self._forward_shared_prefix(rend) if share_prefix else self._forward_full(rend)
         P = torch.softmax(logits.float(), -1).cpu()
-        answers = {}
-        for r, p in zip(rows, P, strict=False):
-            K = len(r.options)
-            pk = p[:K].tolist()
-            Kc = max(K, 2)
-            conf = (max(pk) - 1 / Kc) / (1 - 1 / Kc)
-            probs = {o.name: round(v, 6) for o, v in zip(r.options, pk, strict=False)}
-            if r.qtype == "noul":
-                answers[r.id] = {
-                    "type": "noul",
-                    "noul": probs["yes"],
-                    "probabilities": probs,
-                    "confidence": round(conf, 6),
-                }
-            elif r.qtype == "choice":
-                answers[r.id] = {
-                    "type": "choice",
-                    "choice": max(probs, key=probs.get),
-                    "probabilities": probs,
-                    "confidence": round(conf, 6),
-                }
-            else:
-                answers[r.id] = {
-                    "type": "score",
-                    "score": round(sum(i * v for i, v in enumerate(pk)), 4),
-                    "probabilities": probs,
-                    "confidence": round(conf, 6),
-                }
+        answers = {
+            r.id: answer(r, p[: len(r.options)].tolist()) for r, p in zip(rows, P, strict=True)
+        }
         return {
             "answers": answers,
             "usage": {"input_tokens": sum(len(x["input_ids"]) for x in rend), "output_tokens": 0},

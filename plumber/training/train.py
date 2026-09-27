@@ -19,20 +19,28 @@ import time
 
 import torch
 
+from ..contract import rows_from_request
 from ..core.heads import decision_loss
 from ..core.rendering import Row, render
-from ..core.trunk import LORA_TARGETS, PlumbModel, collate, pin_mamba_devices
+from ..core.targets import coverage, select_targets
+from ..core.trunk import PlumbModel, collate, pin_mamba_devices
 
 
 def load_rows(path, limit=None):
+    """JSONL of Rows, or of labelled API requests (``{"state", "questions": {id: {..., "label"}}}``), one per line."""
     rows = []
     with open(path) as f:
-        for line in f:
-            if line.strip():
+        for n, line in enumerate(f):
+            if not line.strip():
+                continue
+            d = json.loads(line)
+            if "questions" in d:
+                rows.extend(rows_from_request(d, prefix=f"{n}:"))
+            else:
                 rows.append(Row.from_json(line))
             if limit and len(rows) >= limit:
                 break
-    return rows
+    return rows[:limit] if limit else rows
 
 
 @torch.no_grad()
@@ -103,7 +111,13 @@ def bucketed_batches(order, lengths, tokens_per_batch, max_rows, max_len, rng, c
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--model", default="nvidia/NVIDIA-Nemotron-3.5-Lightning-30B-A3B-BF16")
+    ap.add_argument(
+        "--base",
+        "--model",
+        dest="model",
+        default="nvidia/NVIDIA-Nemotron-3.5-Lightning-30B-A3B-BF16",
+        help="any Hugging Face causal LM to plumbify",
+    )
     ap.add_argument("--rows", required=True)
     ap.add_argument("--dev", default=None)
     ap.add_argument("--out", required=True)
@@ -165,15 +179,23 @@ def main():
         )
         print(f"[init] warm-started LoRA + head from {a.init_from}", flush=True)
     else:
+        mtype = getattr(model.trunk.config, "model_type", None)
+        targets = select_targets(model.trunk, mtype)
+        cov = coverage(model.trunk, targets)
+        print(f"[lora] model_type={mtype} targets={targets} coverage={cov}", flush=True)
+        if cov["_layers_total"] and cov["_layers_adapted"] < 0.9 * cov["_layers_total"]:
+            raise SystemExit(
+                f"LoRA targets touch {cov['_layers_adapted']}/{cov['_layers_total']} layers; "
+                "refusing to train a mostly frozen trunk"
+            )
         lcfg = LoraConfig(
             r=a.lora_r,
             lora_alpha=a.lora_alpha,
             lora_dropout=0.05,
-            target_modules=LORA_TARGETS,
+            target_modules=targets,
             bias="none",
         )
         model.trunk = get_peft_model(model.trunk, lcfg)
-    # coverage report: the run does not start if LoRA missed the Mamba or MoE layers
     hit = {}
     for n_, m_ in model.trunk.named_modules():
         if hasattr(m_, "lora_A"):
