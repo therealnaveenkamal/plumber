@@ -34,6 +34,13 @@ class PointerHead(nn.Module):
         Returns logits [B, K_max] with -inf padding."""
         B, K_max = h.shape[0], max(len(s) for s in opt_spans)
         logits = h.new_full((B, K_max), float("-inf"), dtype=torch.float32)
+        with torch.autocast(
+            h.device.type, enabled=False
+        ):  # 17M params: run the readout in fp32, not bf16
+            return self._readout(h.float(), opt_spans, decide_pos, logits)
+
+    def _readout(self, h, opt_spans, decide_pos, logits):
+        B = h.shape[0]
         for b in range(B):
             q = h[b, decide_pos[b]]  # [d]
             last = torch.stack([h[b, e - 1] for (s, e) in opt_spans[b]])  # [K, d]

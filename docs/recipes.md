@@ -35,7 +35,7 @@ plumber plumbify --base google/gemma-4-26B-A4B   --rows data/recipe/large/train.
 plumber plumbify --base nvidia/NVIDIA-Nemotron-3.5-Lightning-30B-A3B-BF16 --rows data/recipe/large/train.jsonl --dev data/recipe/large/dev.jsonl --out runs/nemotron --epochs 1 --tokens_per_batch 16384 --max_len 8192 --lr 5e-5 --head_lr 5e-4
 ```
 
-LoRA targets are chosen per architecture (`plumber/core/targets.py`) and training refuses to start if fewer than 90% of the trunk's layers received one. Image-text checkpoints (Qwen3.5, Gemma 4) load their text trunk only. Dense models above ~10B and MoE models above ~25B want two GPUs (`device_map="auto"` is the default).
+LoRA targets are chosen per architecture (`plumber/core/targets.py`) and training refuses to start if fewer than 90% of the trunk's layers received one. Install `flash-linear-attention` for Qwen3.5 / Qwen3.8 bases: without it transformers runs the Gated DeltaNet layers in plain PyTorch, about 3× slower. Sub-1B bases need more than one pass over the recipe (`--epochs 2`); a 0.8B model at one epoch stays at chance on never-seen families. Image-text checkpoints (Qwen3.5, Gemma 4) load their text trunk only. Dense models above ~10B and MoE models above ~25B want two GPUs (`device_map="auto"` is the default).
 
 ## 4. Evaluate, calibrate, serve
 
