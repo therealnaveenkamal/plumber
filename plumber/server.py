@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import threading
 import uuid
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
@@ -13,7 +14,12 @@ from .engine import DEFAULT_BASE, Plumber
 
 
 def make_handler(engine, api_key: str | None = None):
-    """Routes: GET / (health), GET /v1/models, POST /v1/systemone. ``api_key`` requires ``Authorization: Bearer``."""
+    """Routes: GET / (health), GET /v1/models, POST /v1/systemone. ``api_key`` requires ``Authorization: Bearer``.
+
+    Requests are accepted concurrently but run through the model one at a time: the trunk's Triton kernels
+    (autotuning on first use of a shape) are not safe to call from several threads at once.
+    """
+    infer = threading.Lock()
 
     class H(BaseHTTPRequestHandler):
         def log_message(self, *a):
@@ -70,7 +76,8 @@ def make_handler(engine, api_key: str | None = None):
                     422, {"error": "request needs `state` and a non-empty `questions` object"}
                 )
             try:
-                resp = engine.decide(req.get("state", ""), req["questions"])
+                with infer:
+                    resp = engine.decide(req.get("state", ""), req["questions"])
             except ValueError as e:
                 return self._send(422, {"error": str(e)[:300]})
             resp["model"] = req.get("model") or resp["model"]
