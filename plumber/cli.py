@@ -37,7 +37,9 @@ def main(argv=None):
 
         sys.argv = ["plumber train", *rest]
         return m()
-    if cmd == "plumbify":  # fit a plumb (LoRA + head) on any base LM = turn it into a decision model
+    if (
+        cmd == "plumbify"
+    ):  # fit a plumb (LoRA + head) on any base LM = turn it into a decision model
         from .training.train import main as m
 
         sys.argv = ["plumber plumbify", *rest]
