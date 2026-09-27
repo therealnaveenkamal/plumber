@@ -42,6 +42,14 @@ def question_to_row(qid, q: dict, state, label=None) -> Row:
             opts = [Option(str(k), "") for k in crit]
         else:
             raise ValueError(f"{qid}: choice needs criteria")
+        found = described_by_state(
+            state, [o.name for o in opts], require_exact=any(o.desc for o in opts)
+        )
+        if found:
+            opts = [
+                Option(o.name, f"{o.desc}: {found[o.name]}" if o.desc else found[o.name])
+                for o in opts
+            ]
     elif t == "noul":
         c = crit if isinstance(crit, dict) else {}
         opts = [Option("no", str(c.get("false") or "")), Option("yes", str(c.get("true") or ""))]
@@ -60,6 +68,26 @@ def question_to_row(qid, q: dict, state, label=None) -> Row:
         options=opts,
         gold=gold,
     )
+
+
+def described_by_state(
+    state, names: list[str], require_exact: bool = False
+) -> dict[str, str] | None:
+    """Option labels that key a mapping inside the state (``candidate_summaries: {a: …, b: …}``) take that content as
+    their description, so the readout sees the candidate text under its marker rather than a lone letter.
+
+    Bare labels match any mapping containing all the names; labels that already carry a description only match a
+    nested mapping whose keys are exactly the option set (``require_exact``), and the content is appended.
+    """
+    if not isinstance(state, dict) or not names:
+        return None
+    nested = [v for v in state.values() if isinstance(v, dict)]
+    for m in nested if require_exact else [state, *nested]:
+        if require_exact and set(m) != set(names):
+            continue
+        if all(n in m and isinstance(m[n], str | int | float) for n in names):
+            return {n: str(m[n]) for n in names}
+    return None
 
 
 def _gold_index(qid, t, opts, label) -> int:

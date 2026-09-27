@@ -66,3 +66,33 @@ def test_answer_shapes():
     assert a["score"] == pytest.approx(1.44)
     assert a["legend"] == {"0": "low", "1": "normal", "2": "high"}
     assert a["confidence"] == pytest.approx(1 - 0.44 / (2 / 3), abs=1e-6)
+
+
+def test_bare_labels_take_their_state_content():
+    state = {
+        "transcript": "…",
+        "candidate_summaries": {"a": "first summary", "b": "second summary", "c": "third summary"},
+    }
+    q = {
+        "type": "choice",
+        "instructions": "Which summary matches?",
+        "criteria": {"a": None, "b": None, "c": None},
+    }
+    r = question_to_row("q", q, state)
+    assert [o.desc for o in r.options] == ["first summary", "second summary", "third summary"]
+    # placeholder descriptions get the content appended when a nested mapping is keyed by exactly the option set
+    r = question_to_row(
+        "q",
+        {"type": "choice", "criteria": {"a": "Summary a", "b": "Summary b", "c": "Summary c"}},
+        state,
+    )
+    assert [o.desc for o in r.options] == [
+        "Summary a: first summary",
+        "Summary b: second summary",
+        "Summary c: third summary",
+    ]
+    # a partial match is not the option set: descriptions are left alone
+    r = question_to_row("q", {"type": "choice", "criteria": {"a": "A", "b": "B"}}, state)
+    assert [o.desc for o in r.options] == ["A", "B"]
+    r = question_to_row("q", {"type": "choice", "criteria": ["x", "y"]}, state)
+    assert [o.desc for o in r.options] == ["", ""]
