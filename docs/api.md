@@ -6,7 +6,7 @@
 Plumber(model, base=DEFAULT_BASE, dtype="bfloat16", device_map="auto", max_len=32768)
 ```
 
-`model` is a merged release (Hub id or directory) or an adapter directory, which is stacked on `base`.
+`model` is a merged release (Hub id or directory) or a plumb directory (LoRA + `head.pt`), which is stacked on `base`.
 
 | method | returns |
 |---|---|

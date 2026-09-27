@@ -16,7 +16,7 @@ def main(argv=None):
         print("  eval    --ckpt DIR --rows ROWS.jsonl --out DIR")
         print("  calibrate --ckpt DIR --preds DIR/preds.jsonl [--apply OTHER/preds.jsonl]")
         print(
-            "  plumbify --base HF_ID --rows ROWS.jsonl --out DIR   (adapter + head on any causal LM)"
+            "  plumbify --base HF_ID --rows ROWS.jsonl --out DIR   (fit a plumb on any causal LM)"
         )
         print("  train   --rows ROWS.jsonl --out DIR ...             (same, Nemotron default)")
         print("  export  --ckpt DIR --out DIR --card README.md [--repo org/name]")
@@ -37,7 +37,7 @@ def main(argv=None):
 
         sys.argv = ["plumber train", *rest]
         return m()
-    if cmd == "plumbify":  # train an adapter + head on any base LM = turn it into a decision model
+    if cmd == "plumbify":  # fit a plumb (LoRA + head) on any base LM = turn it into a decision model
         from .training.train import main as m
 
         sys.argv = ["plumber plumbify", *rest]

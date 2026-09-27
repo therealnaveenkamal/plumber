@@ -31,7 +31,7 @@ Plumber is built for decisions, not chat:
 - **Prefix caching.** A request carries any number of questions; the state is encoded once and its cache — attention KV and Mamba recurrent states — is forked to every question.
 - **Long states.** 32k-token training window on a 256k-context trunk.
 - **Drop-in for Jev.** `POST /v1/systemone` with the System One request and response schema; the official `typesafe_sdk` client works against a Plumb server unchanged.
-- **Plumbify.** A Plumb model is an adapter and a 17M-parameter head on an unchanged open-weight LLM. `plumber plumbify --base <hf id>` builds one on any causal LM.
+- **Plumbify.** A plumb is a LoRA and a 17M-parameter pointer head on an unchanged open-weight LLM. `plumber plumbify --base <hf id>` builds one on any causal LM.
 
 ## Getting Started
 
@@ -104,7 +104,7 @@ Requirements: a CUDA GPU with ~64 GB of memory in bf16 (one 80 GB card, or two 4
 
 DecisionBench rows. **New** is six task families the model never saw (routing_triage, document_workflows, guardrails_moderation, risk_scoring, triage, content_moderation; 6,966 rows) — the closest thing here to your own questions. **Trained** is held-out rows from the 21 families it trained on. Brier scores the whole distribution, lower is better; coverage is the share of decisions that can be automated at a 5% error budget. Split definitions ship with [totum-labs/plumb-data](https://huggingface.co/datasets/totum-labs/plumb-data).
 
-`Plumber(model)` accepts a merged release (Hub id or directory) or an un-merged adapter directory, which it stacks on the base trunk.
+`Plumber(model)` accepts a merged release (Hub id or directory) or an un-merged plumb directory (`adapter/` + `head.pt`), which it stacks on the base trunk.
 
 ## Benchmarks
 
@@ -153,10 +153,10 @@ Training rows are API requests with a `label` on every question — the same JSO
    "priority": {"type": "score",  "instructions": "How urgent is this?", "criteria": ["low", "normal", "high"], "label": 1}}}
 ```
 
-`choice` labels are the option name, `noul` labels `true`/`false`, `score` labels the level's position from 0. Keep 10–20% aside for evaluation. Continue from the released adapter (`adapter/` plus `head.pt` from the model repo) so the model keeps what it knows, then evaluate, merge and serve:
+`choice` labels are the option name, `noul` labels `true`/`false`, `score` labels the level's position from 0. Keep 10–20% aside for evaluation. Continue from the released plumb (`adapter/` plus `head.pt` from the model repo) so the model keeps what it knows, then evaluate, merge and serve:
 
 ```bash
-plumber train  --rows train.jsonl --dev heldout.jsonl --out runs/mine --init_from <adapter dir> \
+plumber train  --rows train.jsonl --dev heldout.jsonl --out runs/mine --init_from <plumb dir> \
                --epochs 2 --lr 2e-5 --tokens_per_batch 32768 --max_len 32768
 plumber eval      --ckpt runs/mine/final --rows heldout.jsonl --out runs/mine/eval   # accuracy, NLL, Brier, ECE, coverage
 plumber calibrate --ckpt runs/mine/final --preds runs/mine/eval/preds.jsonl          # fit a temperature on your labels
@@ -168,15 +168,15 @@ plumber serve  --model release/mine
 
 ## Plumbify Any Model
 
-The recipe above is not specific to Nemotron. `plumber plumbify` fits the adapter and head on any Hugging Face causal LM:
+The recipe above is not specific to Nemotron. `plumber plumbify` fits a plumb — LoRA plus pointer head — on any Hugging Face causal LM:
 
 ```bash
 plumber plumbify --base Qwen/Qwen3.8-27B --rows train.jsonl --dev dev.jsonl --out runs/qwen3.8-27b
 ```
 
-The LM head is dropped at load. LoRA targets are chosen from the architecture (`plumber/core/targets.py`): Mamba and DeltaNet `in_proj`, attention `q/k/v/o`, dense and shared-expert MLP projections; routed experts stay frozen. Training refuses to start unless at least 90% of the trunk's layers received an adapter, so an unrecognised architecture fails before it burns GPU time rather than training a head alone. The result runs through the same engine, server and SDK.
+The LM head is dropped at load. LoRA targets are chosen from the architecture (`plumber/core/targets.py`): Mamba and DeltaNet `in_proj`, attention `q/k/v/o`, dense and shared-expert MLP projections; routed experts stay frozen. Training refuses to start unless at least 90% of the trunk's layers received LoRA modules, so an unrecognised architecture fails before it burns GPU time rather than training a head alone. The result runs through the same engine, server and SDK.
 
-| Base | Adapter |
+| Base | Plumb |
 |---|---|
 | [Nemotron 3.5 Lightning 30B-A3B](https://huggingface.co/nvidia/NVIDIA-Nemotron-3.5-Lightning-30B-A3B-BF16) | Plumb v1 — released |
 | [Qwen3.8-27B](https://huggingface.co/Qwen/Qwen3.8-27B) | planned |
