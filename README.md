@@ -96,28 +96,26 @@ print(response.nouls["billing"].noul, response.choices["tone"].choice, response.
 
 Requirements: a CUDA GPU with ~64 GB of memory in bf16 (one 80 GB card, or two 40 GB+ cards with `device_map="auto"`); `mamba_ssm` and `causal_conv1d` for the fast path. Python 3.10+, transformers ≥ 5.17.
 
-## Models
-
-| Model | Base | Accuracy new / trained | Brier new / trained | Coverage @ 5% error, new / trained | Runs on | |
-|---|---|:---:|:---:|:---:|---|---|
-| **Plumb** | Nemotron 3.5 Lightning 30B-A3B | **0.730 / 0.839** | 0.412 / 0.219 | 0.44 / 0.73 | 1× 80 GB, or 2× 40 GB | [Model card](https://huggingface.co/totum-labs/plumb-nemotron-3.5-lightning-30b-a3b) |
-
-DecisionBench rows. **New** is six task families the model never saw (routing_triage, document_workflows, guardrails_moderation, risk_scoring, triage, content_moderation; 6,966 rows) — the closest thing here to your own questions. **Trained** is held-out rows from the 21 families it trained on. Brier scores the whole distribution, lower is better. Coverage is the share of decisions that can be automated at a 5% error budget, averaged over families; pooled over rows it is 0.02 because of one ordinal task (`toxicity_severity`) that every model here answers at chance and Plumb answers confidently — see the model card. Split definitions ship with [totum-labs/plumb-data](https://huggingface.co/datasets/totum-labs/plumb-data).
-
-`Plumber(model)` accepts a merged release (Hub id or directory) or an un-merged plumb directory (`adapter/` + `head.pt`), which it stacks on the base trunk.
-
 ## Benchmarks
 
-Evaluated on data excluded from training. Comparator values are the benchmarks' published records; protocols, per-family and per-skill results are on the [model card](https://huggingface.co/totum-labs/plumb-nemotron-3.5-lightning-30b-a3b).
+Evaluated on data excluded from training. DecisionBench values for Jev, Kev and Laya are the registry's per-family records ([`Hanno-Labs/decision-bench-results`](https://huggingface.co/datasets/Hanno-Labs/decision-bench-results): `typesafe/jev-1.13`, `jaredpalmer/kev-4b`, `convaiinnovations/laya-typed-decisions`) aggregated over the same six families; JevBench values are the v1.4.2 results release. Protocols and per-family results are on the [model card](https://huggingface.co/totum-labs/plumb-nemotron-3.5-lightning-30b-a3b).
 
-| Benchmark | Metric | Plumb | Jev 1.13 |
-|---|---|---:|---:|
-| DecisionBench, 6 never-seen families (6,966 rows) | accuracy, micro / macro | **0.730 / 0.786** | 0.657 / 0.668 |
-| | ECE | **0.074** | 0.128 |
-| JevBench public, hard tier (111) | accuracy | 0.622 | 0.741 |
-| JevBench public, easy / standard | accuracy | 1.000 / 0.972 | 1.000 / 0.990 |
-| Kev hard skills, held-out templates (1,550) | accuracy | 0.750 | – |
-| JevBench, server-side latency | p50 | **0.173 s** | 0.652 s |
+| Benchmark | Metric | Plumb | Jev 1.13 | Kev-4B | Laya |
+|---|---|---:|---:|---:|---:|
+| DecisionBench, never-seen families | accuracy, micro / macro | **0.730 / 0.786** | 0.657 / 0.668 | 0.568 / 0.612 | 0.516 / 0.585 |
+| | ECE | 0.074 | 0.128 | 0.255 | **0.044** |
+| JevBench public, hard tier | accuracy | 0.622 | **0.741** | 0.423 | 0.341 |
+| JevBench public, easy / standard | accuracy | 1.000 / 0.972 | 1.000 / **0.990** | 1.000 / 0.917 | 0.944 / 0.729 |
+| Hard skills, held-out templates | accuracy | 0.750 | – | – | – |
+| JevBench, server-side latency | p50 | **0.173 s** | 0.652 s | 0.550 s | 0.787 s |
+
+Reproduce Plumb's column:
+
+```bash
+python -m plumber.data.decisionbench && python -m plumber.data.split      # data/decisionbench/test_ood.jsonl
+python -m plumber.data.kev --out data/kev_hard                              # data/kev_hard/test.jsonl
+python evals/bench.py --model totum-labs/plumb-nemotron-3.5-lightning-30b-a3b --out out/bench --jevbench /path/to/jevbench
+```
 
 ## API
 
@@ -208,7 +206,7 @@ plumber/
   metrics.py     accuracy, NLL, Brier, ECE, coverage
 tests/
 examples/      quickstart.py, client.py
-evals/         DecisionBench and JevBench runners
+evals/         bench.py (the table above), DecisionBench and JevBench runners
 benchmarks/    serving latency vs. questions per request
 docs/          api.md, serving.md, training.md, recipes.md
 ```
