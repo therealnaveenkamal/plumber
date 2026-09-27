@@ -98,7 +98,7 @@ Requirements: a CUDA GPU with ~64 GB of memory in bf16 (one 80 GB card, or two 4
 
 ## Benchmarks
 
-Evaluated on data excluded from training. DecisionBench here is [Hanno-Labs' DecisionBench](https://huggingface.co/datasets/Hanno-Labs/decision-bench) (27 task families), not Atlan's [Decision Bench](https://decisionbench.ai/); values for Jev, Kev and Laya are the registry's per-family records ([`Hanno-Labs/decision-bench-results`](https://huggingface.co/datasets/Hanno-Labs/decision-bench-results): `typesafe/jev-1.13`, `jaredpalmer/kev-4b`, `convaiinnovations/laya-typed-decisions`) aggregated over the same six families; JevBench values are the v1.4.2 results release; Decision Bench (Atlan) values are its published bench-v4 runs, Plumb scored through the harness's System One provider. ¹ Latencies are what each harness measured per decision: Plumb on a local Plumber server (2× A100, one request at a time, HTTP included); the others through their hosted APIs, network included. They compare deployments, not model compute. Protocols and per-family results are on the [model card](https://huggingface.co/totum-labs/plumb-nemotron-3.5-lightning-30b-a3b).
+Evaluated on data excluded from training. DecisionBench here is [Hanno-Labs' DecisionBench](https://huggingface.co/datasets/Hanno-Labs/decision-bench) (27 task families), not Atlan's [Decision Bench](https://decisionbench.ai/); values for Jev, Kev and Laya are the registry's per-family records ([`Hanno-Labs/decision-bench-results`](https://huggingface.co/datasets/Hanno-Labs/decision-bench-results): `typesafe/jev-1.13`, `jaredpalmer/kev-4b`, `convaiinnovations/laya-typed-decisions`) aggregated over the same six families; JevBench values are the v1.4.2 results release; Decision Bench (Atlan) values are its published bench-v4 runs, Plumb scored through the harness's System One provider. ¹ TypeSafe publishes rate limits, not latency; latencies are Atlan's harness measurements per decision — Plumb on a local Plumber server (2× A100, one request at a time), the others through their hosted APIs, network included. Protocols and per-family results are on the [model card](https://huggingface.co/totum-labs/plumb-nemotron-3.5-lightning-30b-a3b).
 
 | Benchmark | Metric | Plumb | Jev 1.13 | Kev-4B | Laya |
 |---|---|---:|---:|---:|---:|
@@ -108,8 +108,7 @@ Evaluated on data excluded from training. DecisionBench here is [Hanno-Labs' Dec
 | JevBench public, easy / standard | accuracy | 1.000 / 0.972 | 1.000 / **0.990** | 1.000 / 0.917 | 0.944 / 0.729 |
 | Hard skills, held-out templates | accuracy | 0.750 | – | – | – |
 | Decision Bench (Atlan), 35 tasks | accuracy | 0.814 | **0.924** | – | 0.528 |
-| JevBench latency, p50 ¹ | seconds | 0.173 | 0.652 | 0.550 | 0.787 |
-| Decision Bench (Atlan) latency, p50 ¹ | seconds | 0.626 | 0.439 | – | 1.525 |
+| Decision Bench (Atlan), latency p50 ¹ | seconds | 0.63 | 0.44 | – | 1.52 |
 
 Reproduce Plumb's column:
 
