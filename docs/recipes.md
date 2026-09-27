@@ -48,3 +48,14 @@ plumber serve     --base Qwen/Qwen3.5-4B --model runs/qwen3.5-4b/final
 ```
 
 `eval_new` is the six DecisionBench families no recipe row comes from; `eval_hard` is the hard-skill templates no recipe row comes from. Both are the numbers in the README's recipe table.
+
+## Measured
+
+Nemotron 3.5 Lightning 30B-A3B from the base model, one A100-80GB, 32-row micro-batches capped at 16k tokens:
+
+| recipe | rows | max tokens | time | DecisionBench never-seen (micro / macro, ECE) | hard-skill templates | Atlan Decision Bench | JevBench easy / standard / hard |
+|---|---|---|---|---|---|---|---|
+| short (`quick`): 15k hard-skill + 11.7k tasksource + 3.9k DecisionBench | 30.6k | 1,024 | 33 min | 0.711 / 0.776, 0.061 | 0.757 | 0.789 | 1.000 / 0.903 / 0.495 |
+| released model: 130k-row breadth stage + 37k-row stage with hard rows, up to 32k tokens | 167k | 32,768 | ~5 h | 0.730 / 0.786, 0.074 | 0.750 | 0.816 | 1.000 / 0.972 / 0.622 |
+
+The short recipe gives up the long-context tiers (JevBench tradeoff, temporal/numeric, long policy; Atlan legal and product). Rows over 1k tokens are what the extra hours buy.

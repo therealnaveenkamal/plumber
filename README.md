@@ -2,7 +2,7 @@
 
 # Plumber
 
-**An inference engine for typed decision models. State in, calibrated decision out, one forward pass.**
+**Turn any open-weight LLM into a plumb — a typed decision model — and serve it. State in, calibrated decision out, one forward pass.**
 
 [![Model](https://img.shields.io/badge/%F0%9F%A4%97%20Model-totum--labs%2Fplumb-blue)](https://huggingface.co/totum-labs/plumb-nemotron-3.5-lightning-30b-a3b)
 [![License](https://img.shields.io/badge/License-Apache%202.0-green.svg)](LICENSE)
@@ -21,7 +21,7 @@
 
 ## About
 
-Plumber serves **Plumb** models: decision models that answer typed questions about a state with a probability distribution over caller-supplied options, in a single forward pass and without generating text. The interface is the System One contract — `choice`, `score` and `noul` questions — so existing Jev clients and benchmark harnesses run unmodified.
+Plumber turns an autoregressive LLM into a **plumb** — a decision model that answers typed questions about a state with a probability distribution over caller-supplied options, in a single forward pass and without generating text — and serves it. The interface is the System One contract — `choice`, `score` and `noul` questions — so existing Jev clients and benchmark harnesses run unmodified.
 
 Plumber is built for decisions, not chat:
 
@@ -168,7 +168,7 @@ plumber serve  --model release/mine
 
 ## Plumbify Any Model
 
-The recipe above is not specific to Nemotron. `plumber plumbify` fits a plumb — LoRA plus pointer head — on any Hugging Face causal LM:
+The recipe above is not specific to Nemotron. `plumber plumbify` fits a plumb — LoRA plus pointer head — on any Hugging Face causal LM. A 30k-row recipe of rows under 1k tokens (`docs/recipes.md`) takes the Nemotron trunk from base to 0.711 on the never-seen DecisionBench families, 0.757 on held-out hard-skill templates and 0.789 on Atlan's Decision Bench in **33 minutes on one A100**; the released model adds a long-context stage on top of that.
 
 ```bash
 plumber plumbify --base Qwen/Qwen3.8-27B --rows train.jsonl --dev dev.jsonl --out runs/qwen3.8-27b
