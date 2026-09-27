@@ -98,11 +98,11 @@ Requirements: a CUDA GPU with ~64 GB of memory in bf16 (one 80 GB card, or two 4
 
 ## Benchmarks
 
-Evaluated on data excluded from training. DecisionBench values for Jev, Kev and Laya are the registry's per-family records ([`Hanno-Labs/decision-bench-results`](https://huggingface.co/datasets/Hanno-Labs/decision-bench-results): `typesafe/jev-1.13`, `jaredpalmer/kev-4b`, `convaiinnovations/laya-typed-decisions`) aggregated over the same six families; JevBench values are the v1.4.2 results release. Protocols and per-family results are on the [model card](https://huggingface.co/totum-labs/plumb-nemotron-3.5-lightning-30b-a3b).
+Evaluated on data excluded from training. DecisionBench here is [Hanno-Labs' DecisionBench](https://huggingface.co/datasets/Hanno-Labs/decision-bench) (27 task families), not Atlan's [Decision Bench](https://decisionbench.ai/); values for Jev, Kev and Laya are the registry's per-family records ([`Hanno-Labs/decision-bench-results`](https://huggingface.co/datasets/Hanno-Labs/decision-bench-results): `typesafe/jev-1.13`, `jaredpalmer/kev-4b`, `convaiinnovations/laya-typed-decisions`) aggregated over the same six families; JevBench values are the v1.4.2 results release. Protocols and per-family results are on the [model card](https://huggingface.co/totum-labs/plumb-nemotron-3.5-lightning-30b-a3b).
 
 | Benchmark | Metric | Plumb | Jev 1.13 | Kev-4B | Laya |
 |---|---|---:|---:|---:|---:|
-| DecisionBench, never-seen families | accuracy, micro / macro | **0.730 / 0.786** | 0.657 / 0.668 | 0.568 / 0.612 | 0.516 / 0.585 |
+| DecisionBench (Hanno-Labs), never-seen families | accuracy, micro / macro | **0.730 / 0.786** | 0.657 / 0.668 | 0.568 / 0.612 | 0.516 / 0.585 |
 | | ECE | 0.074 | 0.128 | 0.255 | **0.044** |
 | JevBench public, hard tier | accuracy | 0.622 | **0.741** | 0.423 | 0.341 |
 | JevBench public, easy / standard | accuracy | 1.000 / 0.972 | 1.000 / **0.990** | 1.000 / 0.917 | 0.944 / 0.729 |
