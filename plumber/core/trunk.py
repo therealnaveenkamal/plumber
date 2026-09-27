@@ -122,7 +122,8 @@ class PlumbModel(nn.Module):
         h = self.trunk(
             input_ids=input_ids, attention_mask=attention_mask, use_cache=False, **kw
         ).last_hidden_state
-        return self.head(h, opt_spans, decide_pos)
+        # under device_map sharding a top-level trunk returns h on the input device; the head lives with the last layer
+        return self.head(h.to(self.head.pool.weight.device), opt_spans, decide_pos)
 
     @torch.no_grad()
     def score(

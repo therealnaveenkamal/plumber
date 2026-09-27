@@ -129,7 +129,7 @@ class Plumber:
             h = out.last_hidden_state
             spans = [[(s - L_p, e - L_p) for (s, e) in x["opt_spans"]] for x in rend]
             decide = [x["decide_pos"] - L_p for x in rend]
-            return self.model.head(h, spans, decide)
+            return self.model.head(h.to(self.model.head.pool.weight.device), spans, decide)
 
     def choice(self, state, instructions: str, criteria) -> dict:
         return self.decide(
