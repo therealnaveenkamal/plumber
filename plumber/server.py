@@ -10,7 +10,7 @@ import uuid
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 from . import __version__
-from .engine import DEFAULT_BASE, Plumber
+from .engine import Plumber
 
 
 def make_handler(engine, api_key: str | None = None):
@@ -91,7 +91,7 @@ def main():
     ap.add_argument(
         "--model", required=True, help="merged release (HF repo id or dir) or adapter dir"
     )
-    ap.add_argument("--base", default=DEFAULT_BASE)
+    ap.add_argument("--base", default=None, help="override the base recorded in the plumb")
     ap.add_argument("--host", default="127.0.0.1", help="0.0.0.0 to accept other machines")
     ap.add_argument("--port", type=int, default=8123)
     ap.add_argument("--dtype", default="bfloat16")

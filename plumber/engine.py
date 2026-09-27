@@ -29,12 +29,13 @@ _DTYPES = {
 
 
 class Plumber:
-    """Inference engine. `model` is a merged release (HF repo id or local dir) or an adapter dir (stacked on `base`)."""
+    """Inference engine. `model` is a merged release (HF repo id or local dir) or a plumb dir; a plumb loads the base it
+    was trained on unless `base` says otherwise."""
 
     def __init__(
         self,
         model: str,
-        base: str = DEFAULT_BASE,
+        base: str | None = None,
         dtype: str = "bfloat16",
         device_map: str = "auto",
         max_len: int = 32768,
@@ -44,13 +45,13 @@ class Plumber:
 
         t0 = time.time()
         self.model_id = model
-        self.base = base
         self.max_len = max_len
-        self.tok = AutoTokenizer.from_pretrained(model if _has_tokenizer(model) else base)
-        self.pad = self.tok.pad_token_id if self.tok.pad_token_id is not None else 0
         self.model = PlumbModel.load(
             model, base=base, d_proj=d_proj, dtype=_DTYPES[dtype], device_map=device_map
         )
+        self.base = base or getattr(self.model.trunk.config, "_name_or_path", None) or DEFAULT_BASE
+        self.tok = AutoTokenizer.from_pretrained(model if _has_tokenizer(model) else self.base)
+        self.pad = self.tok.pad_token_id if self.tok.pad_token_id is not None else 0
         self.device = next(self.model.trunk.parameters()).device
         self.load_seconds = time.time() - t0
 

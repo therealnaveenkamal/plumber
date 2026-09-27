@@ -23,10 +23,7 @@ from .train import load_rows
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument(
-        "--base",
-        "--model",
-        dest="model",
-        default="nvidia/NVIDIA-Nemotron-3.5-Lightning-30B-A3B-BF16",
+        "--base", "--model", dest="model", default=None, help="override the plumb's base"
     )
     ap.add_argument("--ckpt", required=True)
     ap.add_argument("--rows", required=True)
@@ -39,11 +36,11 @@ def main():
     os.makedirs(a.out, exist_ok=True)
     from transformers import AutoTokenizer
 
-    tok = AutoTokenizer.from_pretrained(a.model)
-    pad_id = tok.pad_token_id if tok.pad_token_id is not None else 0
     model = PlumbModel.load(
         a.ckpt, base=a.model, d_proj=a.d_proj, dtype=torch.bfloat16, device_map="auto"
-    )  # adapter dir OR merged release
+    )  # plumb dir OR merged release
+    tok = AutoTokenizer.from_pretrained(a.model or model.trunk.config._name_or_path)
+    pad_id = tok.pad_token_id if tok.pad_token_id is not None else 0
     rows = load_rows(a.rows, a.limit)
     in_dev = next(model.trunk.parameters()).device
     preds, skipped, t0 = [], 0, time.time()

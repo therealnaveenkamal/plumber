@@ -124,15 +124,15 @@ def main():
     ap.add_argument("--limit", type=int, default=None)
     ap.add_argument("--dev_limit", type=int, default=500)
     ap.add_argument("--epochs", type=int, default=1)
-    ap.add_argument("--bsz", type=int, default=2)
-    ap.add_argument("--accum", type=int, default=8)
+    ap.add_argument("--bsz", type=int, default=32, help="max rows per micro-batch")
+    ap.add_argument("--accum", type=int, default=2)
     ap.add_argument(
         "--tokens_per_batch",
         type=int,
-        default=0,
+        default=16384,
         help=">0: length-bucketed micro-batches capped at this many tokens (bsz becomes the max rows per micro-batch)",
     )
-    ap.add_argument("--max_len", type=int, default=2048)
+    ap.add_argument("--max_len", type=int, default=8192)
     ap.add_argument("--lr", type=float, default=1e-4)
     ap.add_argument("--head_lr", type=float, default=5e-4)
     ap.add_argument("--lora_r", type=int, default=32)
@@ -175,6 +175,11 @@ def main():
         model.head.temperature.fill_(1.0)  # refit after training
         print(f"[init] warm-started LoRA + head from {a.init_from}", flush=True)
     else:
+        released = _released_head(a.model)  # a merged plumb as --base: continue from its head
+        if released:
+            load_head(model.head, released)
+            model.head.temperature.fill_(1.0)
+            print(f"[init] head from {a.model}", flush=True)
         mtype = getattr(model.trunk.config, "model_type", None)
         targets = select_targets(model.trunk, mtype)
         cov = coverage(model.trunk, targets)
@@ -305,6 +310,21 @@ def main():
             )
     save(model, a.out, "final")
     print("[done]", flush=True)
+
+
+def _released_head(base: str) -> str | None:
+    """head.pt next to a merged release (local dir or Hub repo), if the base is one."""
+    if os.path.isdir(base):
+        p = os.path.join(base, "head.pt")
+        return p if os.path.exists(p) else None
+    try:
+        from huggingface_hub import hf_hub_download, list_repo_files
+
+        if "head.pt" in list_repo_files(base):
+            return hf_hub_download(base, "head.pt")
+    except Exception:
+        pass
+    return None
 
 
 def save(model, out, step):

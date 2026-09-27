@@ -4,7 +4,7 @@ import argparse
 import json
 import sys
 
-from .engine import DEFAULT_BASE, Plumber
+from .engine import Plumber
 
 
 def main(argv=None):
@@ -13,7 +13,7 @@ def main(argv=None):
         print("usage: plumber {serve,decide,plumbify,train,eval,calibrate,export} ...")
         print("  serve   --model REPO --port 8123")
         print("  decide  --model REPO --state TEXT --question TEXT --options a,b,c [--desc ...]")
-        print("  eval    --ckpt DIR --rows ROWS.jsonl --out DIR")
+        print("  eval    --ckpt DIR --rows ROWS.jsonl --out DIR       (base read from the plumb)")
         print("  calibrate --ckpt DIR --preds DIR/preds.jsonl [--apply OTHER/preds.jsonl]")
         print(
             "  plumbify --base HF_ID --rows ROWS.jsonl --out DIR   (fit a plumb on any causal LM)"
@@ -57,7 +57,7 @@ def main(argv=None):
     if cmd == "decide":
         ap = argparse.ArgumentParser("plumber decide")
         ap.add_argument("--model", required=True)
-        ap.add_argument("--base", default=DEFAULT_BASE)
+        ap.add_argument("--base", default=None)
         ap.add_argument("--state", required=True)
         ap.add_argument("--question", required=True)
         ap.add_argument("--options", required=True, help="comma-separated option names")

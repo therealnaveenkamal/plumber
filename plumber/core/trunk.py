@@ -93,20 +93,29 @@ class PlumbModel(nn.Module):
     @staticmethod
     def load(
         ckpt: str,
-        base: str = "nvidia/NVIDIA-Nemotron-3.5-Lightning-30B-A3B-BF16",
+        base: str | None = None,
         d_proj: int = 512,
         **hf_kwargs,
     ) -> PlumbModel:
-        """One entry point for both layouts: an adapter dir (adapter_config.json + head.pt, stacked on `base`) or a merged
-        release (config.json + model shards + head.pt, local dir or HF repo id)."""
+        """One entry point for both layouts: a plumb dir (adapter_config.json + head.pt, stacked on its base) or a merged
+        release (config.json + model shards + head.pt, local dir or HF repo id). ``base`` overrides the base recorded
+        in the plumb's adapter_config.json."""
+        import json
         import os
 
-        from huggingface_hub import list_repo_files
+        from huggingface_hub import hf_hub_download, list_repo_files
 
         files = set(os.listdir(ckpt)) if os.path.isdir(ckpt) else set(list_repo_files(ckpt))
         if "adapter_config.json" in files:
             from peft import PeftModel
 
+            if base is None:
+                cfg = (
+                    os.path.join(ckpt, "adapter_config.json")
+                    if os.path.isdir(ckpt)
+                    else hf_hub_download(ckpt, "adapter_config.json")
+                )
+                base = json.load(open(cfg))["base_model_name_or_path"]
             m = PlumbModel.from_pretrained(base, d_proj=d_proj, **hf_kwargs)
             pin_mamba_devices(m.trunk)
             m.trunk = PeftModel.from_pretrained(m.trunk, ckpt)

@@ -15,8 +15,10 @@ Run `python -m plumber.data.screen --candidates <rows> --heldout data/decisionbe
 ## 2. Build
 
 ```bash
-python -m plumber.data.recipe --size small --rows data/decisionbench/train.jsonl data/tasksource/rows.jsonl --hard data/kev_hard/train.jsonl --out data/recipe/small
-python -m plumber.data.recipe --size large --rows data/decisionbench/train.jsonl data/tasksource/rows.jsonl --hard data/kev_hard/train.jsonl --out data/recipe/large
+python -m plumber.data.recipe --size large --out data/recipe/large \
+  --rows data/decisionbench/train.jsonl data/tasksource/rows.jsonl \
+  --hard data/kev_hard/train.jsonl
+# --size small for the 5-minute version
 ```
 
 | size | rows / family | hard rows / skill | rows | Qwen3.5-4B on 1× A100 |
@@ -29,23 +31,33 @@ python -m plumber.data.recipe --size large --rows data/decisionbench/train.jsonl
 ## 3. Plumbify
 
 ```bash
-plumber plumbify --base Qwen/Qwen3.5-4B          --rows data/recipe/large/train.jsonl --dev data/recipe/large/dev.jsonl --out runs/qwen3.5-4b   --epochs 1 --tokens_per_batch 16384 --max_len 8192 --lr 5e-5 --head_lr 5e-4
-plumber plumbify --base Qwen/Qwen3.5-0.8B        --rows data/recipe/large/train.jsonl --dev data/recipe/large/dev.jsonl --out runs/qwen3.5-0.8b --epochs 1 --tokens_per_batch 16384 --max_len 8192 --lr 1e-4 --head_lr 5e-4
-plumber plumbify --base google/gemma-4-26B-A4B   --rows data/recipe/large/train.jsonl --dev data/recipe/large/dev.jsonl --out runs/gemma4-26b-a4b --epochs 1 --tokens_per_batch 16384 --max_len 8192 --lr 5e-5 --head_lr 5e-4
-plumber plumbify --base nvidia/NVIDIA-Nemotron-3.5-Lightning-30B-A3B-BF16 --rows data/recipe/large/train.jsonl --dev data/recipe/large/dev.jsonl --out runs/nemotron --epochs 1 --tokens_per_batch 16384 --max_len 8192 --lr 5e-5 --head_lr 5e-4
+plumber plumbify --base Qwen/Qwen3.5-4B --rows data/recipe/large/train.jsonl \
+  --dev data/recipe/large/dev.jsonl --out runs/qwen3.5-4b
 ```
 
-LoRA targets are chosen per architecture (`plumber/core/targets.py`) and training refuses to start if fewer than 90% of the trunk's layers received one. Install `flash-linear-attention` for Qwen3.5 / Qwen3.8 bases: without it transformers runs the Gated DeltaNet layers in plain PyTorch, about 3× slower. Sub-1B bases need more than one pass over the recipe (`--epochs 2`); a 0.8B model at one epoch stays at chance on never-seen families. Image-text checkpoints (Qwen3.5, Gemma 4) load their text trunk only. Prefer one GPU whenever the trunk fits: `device_map="auto"` across two GPUs is sequential model parallelism, so each GPU idles while the other works — Nemotron 30B-A3B trains at ~3.4k tok/s on one 80 GB A100 (`CUDA_VISIBLE_DEVICES=0`, 32-row micro-batches at 1k tokens) against ~1.7k tok/s sharded over two. Use two GPUs only when the weights do not fit on one.
+Same command for `Qwen/Qwen3.5-0.8B` (`--epochs 2 --lr 1e-4`, it needs the second pass),
+`google/gemma-4-26B-A4B` and `nvidia/NVIDIA-Nemotron-3.5-Lightning-30B-A3B-BF16`.
+Defaults: 1 epoch, lr 5e-5, rows up to 8k tokens, micro-batches of up to 32 rows or 16k tokens, accumulated ×2.
+
+LoRA targets are chosen per architecture (`plumber/core/targets.py`) and training refuses to start if fewer than 90% of the trunk's layers received one. Image-text checkpoints (Qwen3.5, Gemma 4) load their text trunk only. Install `flash-linear-attention` for Qwen3.5 / Qwen3.8 bases: without it transformers runs the Gated DeltaNet layers in plain PyTorch, about 3× slower. Sub-1B bases need more than one pass over the recipe (`--epochs 2`); a 0.8B model at one epoch stays at chance on never-seen families.
+
+Prefer one GPU whenever the trunk fits: `device_map="auto"` across two GPUs is sequential model parallelism, so each GPU idles while the other works — Nemotron 30B-A3B trains at ~3.4k tok/s on one 80 GB A100 (`CUDA_VISIBLE_DEVICES=0`) against ~1.7k tok/s sharded over two. Use two GPUs only when the weights do not fit on one.
 
 ## 4. Evaluate, calibrate, serve
 
 ```bash
-plumber eval      --base Qwen/Qwen3.5-4B --ckpt runs/qwen3.5-4b/final --rows data/decisionbench/test_ood.jsonl --out runs/qwen3.5-4b/final/eval_new
-plumber eval      --base Qwen/Qwen3.5-4B --ckpt runs/qwen3.5-4b/final --rows data/kev_hard/test.jsonl         --out runs/qwen3.5-4b/final/eval_hard
-plumber eval      --base Qwen/Qwen3.5-4B --ckpt runs/qwen3.5-4b/final --rows data/recipe/large/dev.jsonl       --out runs/qwen3.5-4b/final/eval_dev
-plumber calibrate --ckpt runs/qwen3.5-4b/final --preds runs/qwen3.5-4b/final/eval_dev/preds.jsonl --apply runs/qwen3.5-4b/final/eval_new/preds.jsonl
-plumber serve     --base Qwen/Qwen3.5-4B --model runs/qwen3.5-4b/final
+plumber eval --ckpt runs/qwen3.5-4b/final --rows data/decisionbench/test_ood.jsonl \
+  --out runs/qwen3.5-4b/eval_new
+plumber eval --ckpt runs/qwen3.5-4b/final --rows data/kev_hard/test.jsonl \
+  --out runs/qwen3.5-4b/eval_hard
+plumber eval --ckpt runs/qwen3.5-4b/final --rows data/recipe/large/dev.jsonl \
+  --out runs/qwen3.5-4b/eval_dev
+plumber calibrate --ckpt runs/qwen3.5-4b/final \
+  --preds runs/qwen3.5-4b/eval_dev/preds.jsonl
+plumber serve --model runs/qwen3.5-4b/final
 ```
+
+A plumb records its base in `adapter_config.json`, so `eval` and `serve` find it; `--base` overrides.
 
 `eval_new` is the six DecisionBench families no recipe row comes from; `eval_hard` is the hard-skill templates no recipe row comes from. Both are the numbers in the README's recipe table.
 

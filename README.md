@@ -12,16 +12,18 @@
 
 </div>
 
-A plumb answers typed questions about a state — `choice`, `noul` (yes/no),
-`score` — with a probability over the options you supply, in one forward pass.
-Nothing is generated, so the answer is always one of your options and the
-probabilities are calibrated. The server speaks TypeSafe's System One
-contract, so the official SDK and existing Jev clients work unchanged.
+A plumb takes a piece of state and a typed question — `choice`, `noul`
+(yes/no) or `score` (an ordered scale) — and returns a probability over the
+options you pass in. One forward pass, no decoding. We delete the LM head and
+read the trunk's hidden states at each option and at a final decision token
+instead, so the model can't answer anything outside your options, and the
+probabilities are trained directly rather than parsed out of generated text.
+The server implements TypeSafe's System One API, so the official SDK and
+anything written for Jev works as-is.
 
-Plumber is the tooling: `plumbify` fits a LoRA and a pointer head on any
-Hugging Face causal LM, `serve` runs it with the state prefilled once per
-request and shared by every question, and `eval`, `calibrate` and `export`
-cover the rest.
+We built this to see how close a decision model on an open trunk gets to Jev.
+The released plumb sits on Nemotron 3.5 Lightning 30B-A3B; the same code
+plumbifies Qwen3.5 and Gemma 4.
 
 ## Install
 
@@ -29,8 +31,8 @@ cover the rest.
 pip install git+https://github.com/therealnaveenkamal/plumber
 ```
 
-The released 30B model needs one 80 GB GPU or two 40 GB; transformers ≥ 5.17,
-plus `mamba_ssm` and `causal_conv1d` for the fast path.
+The released model wants one 80 GB GPU or two 40 GB ones, and transformers
+≥ 5.17. Install `mamba_ssm` and `causal_conv1d` for the fast path.
 
 ## Use
 
@@ -47,7 +49,7 @@ engine.noul(state, "Does the customer threaten to leave?")
 engine.score(state, "How urgent is this?", ["not urgent", "soon", "blocking"])
 ```
 
-Serve it, then point any System One client at it:
+Serve it and talk to it with TypeSafe's SDK:
 
 ```bash
 plumber serve --model totum-labs/plumb-nemotron-3.5-lightning-30b-a3b
@@ -69,21 +71,18 @@ r = client.system_one(
 r.nouls["billing"].noul, r.choices["tone"].choice
 ```
 
-`POST /v1/systemone` takes `{state, model, questions}` and returns the answers
-with probabilities; [docs/api.md](docs/api.md) has the contract, the confidence
-formulas, `GET /v1/models` and bearer auth.
+The contract — request shape, confidence formulas, `GET /v1/models`, bearer
+auth — is in [docs/api.md](docs/api.md).
 
-## Benchmarks
+## Results
 
-DecisionBench here is [Hanno-Labs'](https://huggingface.co/datasets/Hanno-Labs/decision-bench)
-(27 task families; six were never trained on), not Atlan's
-[Decision Bench](https://decisionbench.ai/), which is the row below it.
-Comparator values are each benchmark's published records; protocols and
-per-family results are on the [model card](https://huggingface.co/totum-labs/plumb-nemotron-3.5-lightning-30b-a3b).
+We hold six of DecisionBench's 27 task families out of training and report
+those. Atlan's Decision Bench and JevBench are separate benchmarks we never
+trained on. The other columns are the numbers each benchmark publishes.
 
 | Benchmark | Metric | Plumb | Jev 1.13 | Kev-4B | Laya |
 |---|---|---:|---:|---:|---:|
-| DecisionBench, never-seen families | accuracy, micro / macro | **0.730 / 0.786** | 0.657 / 0.668 | 0.568 / 0.612 | 0.516 / 0.585 |
+| DecisionBench (Hanno-Labs), never-seen families | accuracy, micro / macro | **0.730 / 0.786** | 0.657 / 0.668 | 0.568 / 0.612 | 0.516 / 0.585 |
 | | ECE | 0.074 | 0.128 | 0.255 | **0.044** |
 | Decision Bench (Atlan) | accuracy | 0.816 | **0.924** | – | 0.528 |
 | Decision Bench (Atlan) | latency p50 ¹ | **0.17 s** | 0.44 s | – | 1.52 s |
@@ -91,71 +90,72 @@ per-family results are on the [model card](https://huggingface.co/totum-labs/plu
 | JevBench, easy / standard | accuracy | 1.000 / 0.972 | 1.000 / **0.990** | 1.000 / 0.917 | 0.944 / 0.729 |
 | Hard-skill templates, held out | accuracy | 0.750 | – | – | – |
 
-¹ Atlan's harness, per decision: Plumb on a local server (one A100, one request
-in flight, p95 0.22 s); the others through their hosted APIs, network included.
-TypeSafe publishes rate limits, not latency.
+¹ Measured by Atlan's harness. Ours is a local server on one A100 with one
+request in flight (p95 0.22 s); the others go through hosted APIs, so their
+numbers include the network. TypeSafe doesn't publish latency.
 
-Reproduce Plumb's column:
+Where we lose: Jev is 12 points ahead on JevBench's hard tier and 11 on
+Atlan's bench, almost all of it on long documents (contracts, transcripts)
+and judge-style questions. `evals/bench.py` reproduces our column; its
+docstring says where the data comes from.
 
-```bash
-python -m plumber.data.decisionbench && python -m plumber.data.split
-python -m plumber.data.kev --out data/kev_hard
-python evals/bench.py --model totum-labs/plumb-nemotron-3.5-lightning-30b-a3b \
-  --out out/bench --jevbench /path/to/jevbench
-```
-
-## Plumbify
+## Plumbify another model
 
 ```bash
-plumber plumbify --base Qwen/Qwen3.5-4B \
-  --rows data/recipe/large/train.jsonl --dev data/recipe/large/dev.jsonl \
-  --out runs/qwen3.5-4b --epochs 1 --tokens_per_batch 16384 --max_len 8192
-plumber eval --base Qwen/Qwen3.5-4B --ckpt runs/qwen3.5-4b/final \
-  --rows data/decisionbench/test_ood.jsonl --out runs/qwen3.5-4b/eval
-plumber serve --base Qwen/Qwen3.5-4B --model runs/qwen3.5-4b/final
+plumber plumbify --base Qwen/Qwen3.5-4B --rows train.jsonl --out runs/qwen
+plumber eval  --ckpt runs/qwen/final --rows test.jsonl --out runs/qwen/eval
+plumber serve --model runs/qwen/final
 ```
 
-The LM head is dropped at load. LoRA targets come from the architecture —
-Mamba and DeltaNet projections, attention, MLP; routed experts stay frozen —
-and training refuses to start if fewer than 90% of the layers received one.
-Image-text checkpoints (Qwen3.5, Gemma 4) contribute their text trunk.
+`plumbify` puts LoRA on the trunk (Mamba/DeltaNet projections, attention,
+MLP; routed experts are left alone) and trains it together with the head. If
+fewer than 90% of the layers got an adapter it refuses to start — that's our
+guard against a new architecture quietly training only the head. Image-text
+checkpoints like Qwen3.5 and Gemma 4 load their text trunk. A plumb remembers
+its base, so `eval` and `serve` don't need to be told.
 
-`plumber.data.recipe` builds the training set: a capped number of rows from
-each of ~200 task families plus solver-labelled hard-skill rows. Thirty
-thousand rows under 1k tokens take the Nemotron trunk from base to 0.711 on
-the never-seen DecisionBench families in 33 minutes on one A100; the released
-model adds a long-context stage. [docs/recipes.md](docs/recipes.md) has the
-sources, commands and numbers. Plumbs so far: Nemotron 3.5 Lightning
-30B-A3B (released); Qwen3.8-27B and Gemma 4 26B-A4B next.
+For training data, `plumber.data.recipe` samples a fixed number of rows per
+task family from the converters in `plumber/data/`, plus solver-labelled
+hard-skill rows. The short version — 30k rows under 1k tokens — gets Nemotron
+from base to 0.711 on the held-out families in 33 minutes on one A100; the
+released model adds a long-context stage on top. Everything is in
+[docs/recipes.md](docs/recipes.md).
 
 ## Fine-tune on your own data
 
-Training rows are API requests with a `label` on each question — the JSON
-your code already sends, one request per line:
+Write your examples as the requests you would send the server, with a
+`label` on each question. One request per line:
 
 ```json
-{"state": "Two charges for order #4411. Please refund one.",
- "questions": {
-   "team": {"type": "choice", "instructions": "Which team?",
-            "criteria": {"billing": "refunds", "shipping": "delivery"},
-            "label": "billing"},
-   "angry": {"type": "noul", "instructions": "Is the customer angry?",
-             "label": false},
-   "priority": {"type": "score", "instructions": "How urgent?",
-                "criteria": ["low", "normal", "high"], "label": 1}}}
+{
+  "state": "Two charges for order #4411. Please refund one.",
+  "questions": {
+    "team":  {"type": "choice", "instructions": "Which team?",
+              "criteria": {"billing": null, "shipping": null},
+              "label": "billing"},
+    "angry": {"type": "noul", "instructions": "Is the customer angry?",
+              "label": false}
+  }
+}
 ```
 
+`choice` labels are the option name, `noul` labels are `true`/`false`, and
+`score` labels are the level's index from 0. Keep some rows aside to evaluate
+on.
+
 ```bash
-plumber train --rows train.jsonl --dev dev.jsonl --out runs/mine \
-  --init_from <plumb dir> --epochs 2 --lr 2e-5
-plumber eval --ckpt runs/mine/final --rows dev.jsonl --out runs/mine/eval
+plumber train --base totum-labs/plumb-nemotron-3.5-lightning-30b-a3b \
+  --rows train.jsonl --out runs/mine
+plumber eval  --ckpt runs/mine/final --rows heldout.jsonl --out runs/mine/eval
 plumber calibrate --ckpt runs/mine/final --preds runs/mine/eval/preds.jsonl
 plumber export --ckpt runs/mine/final --out release/mine
 ```
 
-`--init_from` keeps what the released plumb knows. `calibrate` fits one
-temperature on held-out predictions and stores it in `head.pt`; it moves the
-confidence, never the winning option. [docs/training.md](docs/training.md).
+Using the released model as `--base` continues from its head; starting from
+the raw Nemotron trunk instead throws away what it already knows. `calibrate`
+fits a temperature on the held-out predictions and stores it in `head.pt` —
+it moves the confidence, never the winning option. Details in
+[docs/training.md](docs/training.md).
 
 ## How it works
 
@@ -167,12 +167,11 @@ confidence, never the winning option. [docs/training.md](docs/training.md).
 ```
 
 One sequence per question. The trunk is the unchanged LLM; a 17M-parameter
-pointer head scores each option's hidden state against the decision position,
-and a softmax over those scores is the answer. `noul` is a two-option
-`choice`; `score` is a `choice` over the levels and returns the expected
-level. LoRA adapts the trunk during training. When a request carries several
-questions, the state is prefilled once and its cache — attention KV and
-recurrent state — is forked to each question.
+pointer head scores each option's hidden state against the state at
+`[DECIDE]`, and a softmax over those scores is the answer. `noul` is a
+two-option `choice`; `score` is a `choice` over the levels, reported as the
+expected level. When a request carries several questions we prefill the state
+once and fork its cache — attention KV and recurrent state — to each question.
 
 ## Citation
 
@@ -186,5 +185,6 @@ recurrent state — is forked to each question.
 
 ## License
 
-Apache-2.0. Built on Nemotron 3.5 Lightning (NVIDIA, OpenMDW-1.1), DecisionBench
-(Hanno-Labs), JevBench, Kev's hard-skill generators and tasksource.
+Apache-2.0. Built on Nemotron 3.5 Lightning (NVIDIA, OpenMDW-1.1),
+DecisionBench (Hanno-Labs), JevBench, Kev's hard-skill generators and
+tasksource.
