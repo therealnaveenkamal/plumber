@@ -11,7 +11,7 @@ from __future__ import annotations
 import torch
 import torch.nn as nn
 
-from .heads import PointerHead
+from .heads import PointerHead, load_head
 from .rendering import Option, Row, render
 
 # transformers>=5.18 names (verified on the meta-device enumeration, lora_targets_enum.json):
@@ -86,7 +86,7 @@ class PlumbModel(nn.Module):
             if os.path.isdir(repo_or_dir)
             else hf_hub_download(repo_or_dir, "head.pt")
         )
-        m.head.load_state_dict(torch.load(head_path, map_location=next(m.head.parameters()).device))
+        load_head(m.head, head_path)
         m.deleted_lm_head_params = 0
         return m
 
@@ -110,11 +110,7 @@ class PlumbModel(nn.Module):
             m = PlumbModel.from_pretrained(base, d_proj=d_proj, **hf_kwargs)
             pin_mamba_devices(m.trunk)
             m.trunk = PeftModel.from_pretrained(m.trunk, ckpt)
-            m.head.load_state_dict(
-                torch.load(
-                    os.path.join(ckpt, "head.pt"), map_location=next(m.head.parameters()).device
-                )
-            )
+            load_head(m.head, os.path.join(ckpt, "head.pt"))
             return m.eval()
         m = PlumbModel.from_merged(ckpt, d_proj=d_proj, **hf_kwargs)
         pin_mamba_devices(m.trunk)

@@ -10,10 +10,11 @@ from .engine import DEFAULT_BASE, Plumber
 def main(argv=None):
     argv = list(sys.argv[1:] if argv is None else argv)
     if not argv or argv[0] in ("-h", "--help"):
-        print("usage: plumber {serve,decide,plumbify,train,eval,export} ...")
+        print("usage: plumber {serve,decide,plumbify,train,eval,calibrate,export} ...")
         print("  serve   --model REPO --port 8123")
         print("  decide  --model REPO --state TEXT --question TEXT --options a,b,c [--desc ...]")
         print("  eval    --ckpt DIR --rows ROWS.jsonl --out DIR")
+        print("  calibrate --ckpt DIR --preds DIR/preds.jsonl [--apply OTHER/preds.jsonl]")
         print(
             "  plumbify --base HF_ID --rows ROWS.jsonl --out DIR   (adapter + head on any causal LM)"
         )
@@ -40,6 +41,11 @@ def main(argv=None):
         from .training.train import main as m
 
         sys.argv = ["plumber plumbify", *rest]
+        return m()
+    if cmd == "calibrate":
+        from .training.calibrate import main as m
+
+        sys.argv = ["plumber calibrate", *rest]
         return m()
     if cmd == "export":
         from .training.export import main as m

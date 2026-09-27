@@ -26,6 +26,8 @@ class PointerHead(nn.Module):
         self.u = nn.Linear(d, 1, bias=False)
         nn.init.zeros_(self.u.weight)
         self.scale = 1.0 / math.sqrt(d_proj)
+        # fitted after training on held-out predictions (`plumber calibrate`); 1.0 = raw logits
+        self.register_buffer("temperature", torch.ones(()))
 
     def forward(self, h: torch.Tensor, opt_spans, decide_pos) -> torch.Tensor:
         """h: [B, L, d]. opt_spans: list (len B) of lists of (start, end). decide_pos: list (len B).
@@ -38,8 +40,17 @@ class PointerHead(nn.Module):
             mean = torch.stack([h[b, s:e].mean(0) for (s, e) in opt_spans[b]])  # [K, d]
             o = self.ln(self.pool(torch.cat([last, mean], -1)))  # [K, d]
             z = (self.wo(o) @ self.wq(q)) * self.scale + self.u(o).squeeze(-1)
-            logits[b, : z.shape[0]] = z.float()
+            logits[b, : z.shape[0]] = z.float() / self.temperature
         return logits
+
+
+def load_head(head: PointerHead, path: str) -> PointerHead:
+    """Load head.pt; checkpoints written before calibration existed carry no temperature and keep 1.0."""
+    sd = torch.load(path, map_location=next(head.parameters()).device)
+    missing, unexpected = head.load_state_dict(sd, strict=False)
+    if unexpected or [k for k in missing if k != "temperature"]:
+        raise RuntimeError(f"head.pt mismatch: missing={missing} unexpected={unexpected}")
+    return head
 
 
 def decision_loss(logits: torch.Tensor, gold, teacher, qtype, lam: float = 0.5) -> torch.Tensor:

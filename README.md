@@ -158,12 +158,13 @@ Training rows are API requests with a `label` on every question — the same JSO
 ```bash
 plumber train  --rows train.jsonl --dev heldout.jsonl --out runs/mine --init_from <adapter dir> \
                --epochs 2 --lr 2e-5 --tokens_per_batch 32768 --max_len 32768
-plumber eval   --ckpt runs/mine/final --rows heldout.jsonl --out runs/mine/eval    # accuracy, NLL, Brier, ECE, coverage
-plumber export --ckpt runs/mine/final --out release/mine                           # merged bf16 trunk + head.pt
+plumber eval      --ckpt runs/mine/final --rows heldout.jsonl --out runs/mine/eval   # accuracy, NLL, Brier, ECE, coverage
+plumber calibrate --ckpt runs/mine/final --preds runs/mine/eval/preds.jsonl          # fit a temperature on your labels
+plumber export    --ckpt runs/mine/final --out release/mine                          # merged bf16 trunk + head.pt
 plumber serve  --model release/mine
 ```
 
-Option order is shuffled every pass, so the head learns the options rather than their positions. Batches are built to a token budget, so 32k-token states train alongside short ones. Rows in the internal `Row` schema (`plumber/core/rendering.py`) are accepted too; the converters, leave-families-out split and contamination screen behind the released data live in `plumber/data/`.
+`calibrate` fits one temperature on held-out predictions and stores it in `head.pt`; it never changes which option wins, only how far the probabilities sit from uniform, so thresholds you set on `probabilities` are measured on your own labels. Option order is shuffled every pass, so the head learns the options rather than their positions. Batches are built to a token budget, so 32k-token states train alongside short ones. Rows in the internal `Row` schema (`plumber/core/rendering.py`) are accepted too; the converters, leave-families-out split and contamination screen behind the released data live in `plumber/data/`.
 
 ## Plumbify Any Model
 
@@ -188,9 +189,9 @@ plumber/
   engine.py      Plumber — decide, choice, noul, score
   contract.py    System One contract: questions -> rows, probabilities -> answers
   server.py      POST /v1/systemone
-  cli.py         plumber serve | decide | plumbify | train | eval | export
+  cli.py         plumber serve | decide | plumbify | train | eval | calibrate | export
   core/          rendering, heads, trunk, LoRA targets
-  training/      train, eval, export
+  training/      train, eval, calibrate, export
   data/          converters, splits, contamination screen
   client.py      HTTP client for a served model
   metrics.py     accuracy, NLL, Brier, ECE, coverage

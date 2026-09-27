@@ -20,7 +20,7 @@ import time
 import torch
 
 from ..contract import rows_from_request
-from ..core.heads import decision_loss
+from ..core.heads import decision_loss, load_head
 from ..core.rendering import Row, render
 from ..core.targets import coverage, select_targets
 from ..core.trunk import PlumbModel, collate, pin_mamba_devices
@@ -171,12 +171,8 @@ def main():
         from peft import PeftModel
 
         model.trunk = PeftModel.from_pretrained(model.trunk, a.init_from, is_trainable=True)
-        model.head.load_state_dict(
-            torch.load(
-                os.path.join(a.init_from, "head.pt"),
-                map_location=next(model.head.parameters()).device,
-            )
-        )
+        load_head(model.head, os.path.join(a.init_from, "head.pt"))
+        model.head.temperature.fill_(1.0)  # refit after training
         print(f"[init] warm-started LoRA + head from {a.init_from}", flush=True)
     else:
         mtype = getattr(model.trunk.config, "model_type", None)
