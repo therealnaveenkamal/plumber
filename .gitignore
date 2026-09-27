@@ -1,0 +1,15 @@
+__pycache__/
+*.pyc
+.pytest_cache/
+box_backup/
+hf_release/
+runs_v0/
+runs_v1/
+runs_v2/
+/runs/
+/data/
+*.safetensors
+*.pt
+*.tgz
+*.log
+_local/

@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "plumber"
+version = "0.1.0"
+description = "Typed decision model (choice / score / noul) on Nemotron 3.5 Lightning: one forward pass, calibrated probabilities over caller-supplied options."
+readme = "README.md"
+license = {text = "Apache-2.0"}
+requires-python = ">=3.10"
+authors = [{name = "Naveenraj Kamalakannan"}]
+dependencies = ["torch>=2.6", "transformers>=5.17", "peft>=0.21", "accelerate>=1.9", "huggingface_hub>=0.30", "safetensors", "sentencepiece"]
+
+[project.optional-dependencies]
+data = ["datasets>=3.0", "pandas", "pyarrow", "tasksource"]
+dev = ["pytest"]
+
+[project.scripts]
+plumber = "plumber.cli:main"
+
+[project.urls]
+Model = "https://huggingface.co/totum-labs/plumb-nemotron-3.5-lightning-30b-a3b"
+Repository = "https://github.com/therealnaveenkamal/plumber"
+
+[tool.setuptools.packages.find]
+include = ["plumber*"]
