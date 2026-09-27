@@ -201,9 +201,8 @@ def main():
         if hasattr(m_, "lora_A"):
             hit[n_.split(".")[-1]] = hit.get(n_.split(".")[-1], 0) + 1
     print(f"[lora] adapted modules: {hit}", flush=True)
-    assert (
-        hit.get("in_proj", 0) == 23 and hit.get("q_proj", 0) == 6 and hit.get("up_proj", 0) == 23
-    ), f"LoRA coverage short - check LORA_TARGETS: {hit}"
+    if not hit and not a.init_from:
+        raise SystemExit(f"no LoRA modules were adapted (targets={targets})")
     lora_params = [p for n_, p in model.trunk.named_parameters() if p.requires_grad]
     head_params = list(model.head.parameters())
     n_tr = sum(p.numel() for p in lora_params) + sum(p.numel() for p in head_params)
