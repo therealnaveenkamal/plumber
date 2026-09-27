@@ -42,6 +42,7 @@ KNOWN: dict[str, list[str]] = {
         "down_proj",
     ],
     "qwen3": ["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"],
+    "gemma4": ["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"],
     "qwen3_moe": ["q_proj", "k_proj", "v_proj", "o_proj"],
     "llama": ["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"],
     "mistral": ["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"],
@@ -97,7 +98,10 @@ def linear_leaves(trunk: nn.Module) -> dict[str, int]:
 def select_targets(trunk: nn.Module, model_type: str | None = None) -> list[str]:
     """Targets present on this trunk: the known list for its model_type if any, else the generic attention/MLP set."""
     present = linear_leaves(trunk)
-    wanted = KNOWN.get(model_type or "")
+    model_type = (model_type or "").removesuffix(
+        "_text"
+    )  # image-text checkpoints expose <family>_text trunks
+    wanted = KNOWN.get(model_type)
     if wanted is None:
         wanted = [n for n in ATTN_MLP if n in present]
         if model_type == "nemotron_h" or "conv1d" in {

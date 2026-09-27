@@ -22,7 +22,12 @@ from .train import load_rows
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--model", default="nvidia/NVIDIA-Nemotron-3.5-Lightning-30B-A3B-BF16")
+    ap.add_argument(
+        "--base",
+        "--model",
+        dest="model",
+        default="nvidia/NVIDIA-Nemotron-3.5-Lightning-30B-A3B-BF16",
+    )
     ap.add_argument("--ckpt", required=True)
     ap.add_argument("--rows", required=True)
     ap.add_argument("--out", required=True)

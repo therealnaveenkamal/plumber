@@ -1,6 +1,6 @@
-"""PlumbModel: a NemotronH trunk with the LM head deleted and a pointer head on top.
+"""PlumbModel: a language-model trunk with the LM head deleted and a pointer head on top.
 
-- from_pretrained loads NemotronHForCausalLM, keeps .model (the trunk), deletes lm_head (352M params).
+- from_pretrained loads any causal or image-text LM, keeps the text trunk, deletes lm_head and vision towers.
 - forward(batch) -> logits over options, one forward pass, no vocabulary anywhere.
 - score(state, question, options) -> logits[K]  (the frozen interface)
 - LORA_TARGETS is the module list PEFT must be given; the defaults would touch 6 of 52 layers.
@@ -32,16 +32,42 @@ class PlumbModel(nn.Module):
         self.head = PointerHead(hidden_size, d_proj).to(last_dev)
 
     @classmethod
-    def from_pretrained(cls, name_or_path: str, d_proj: int = 512, **hf_kwargs) -> PlumbModel:
-        from transformers import AutoModelForCausalLM
-
-        lm = AutoModelForCausalLM.from_pretrained(name_or_path, **hf_kwargs)
-        trunk = lm.model  # NemotronHModel
-        n_head = sum(p.numel() for p in lm.lm_head.parameters())
-        del lm.lm_head  # 2688 x 131072 = 352M params, gone
+    def from_lm(cls, lm: nn.Module, d_proj: int = 512) -> PlumbModel:
+        """Any causal or image-text LM -> its text trunk with the LM head (and any vision tower) deleted."""
+        inner = (
+            getattr(lm, "model", None)
+            or getattr(lm, "transformer", None)
+            or getattr(lm, "base_model", None)
+        )
+        if inner is None:
+            raise ValueError(f"cannot find the trunk on {type(lm).__name__}")
+        trunk = getattr(inner, "language_model", inner)
+        n_head = sum(p.numel() for p in lm.lm_head.parameters()) if hasattr(lm, "lm_head") else 0
+        for name in (
+            "lm_head",
+            "visual",
+            "vision_tower",
+            "embed_vision",
+            "audio_tower",
+            "multi_modal_projector",
+        ):
+            for owner in (lm, inner):
+                if hasattr(owner, name):
+                    delattr(owner, name)
         m = cls(trunk, trunk.config.hidden_size, d_proj)
         m.deleted_lm_head_params = n_head
         return m
+
+    @classmethod
+    def from_pretrained(cls, name_or_path: str, d_proj: int = 512, **hf_kwargs) -> PlumbModel:
+        """Load a base LM from the Hub or disk and keep only its text trunk."""
+        from transformers import AutoConfig, AutoModelForCausalLM, AutoModelForImageTextToText
+
+        cfg = AutoConfig.from_pretrained(name_or_path)
+        multimodal = any(hasattr(cfg, k) for k in ("vision_config", "text_config"))
+        loader = AutoModelForImageTextToText if multimodal else AutoModelForCausalLM
+        lm = loader.from_pretrained(name_or_path, **hf_kwargs)
+        return cls.from_lm(lm, d_proj=d_proj)
 
     @classmethod
     def from_merged(cls, repo_or_dir: str, d_proj: int = 512, **hf_kwargs) -> PlumbModel:
