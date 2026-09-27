@@ -14,7 +14,7 @@ dependencies = ["torch>=2.6", "transformers>=5.17", "peft>=0.21", "accelerate>=1
 
 [project.optional-dependencies]
 data = ["datasets>=3.0", "pandas", "pyarrow", "tasksource"]
-dev = ["pytest"]
+dev = ["pytest", "ruff", "pre-commit"]
 
 [project.scripts]
 plumber = "plumber.cli:main"
@@ -25,3 +25,21 @@ Repository = "https://github.com/therealnaveenkamal/plumber"
 
 [tool.setuptools.packages.find]
 include = ["plumber*"]
+
+[tool.setuptools.package-data]
+plumber = ["py.typed"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+extend-exclude = ["_local", "box_backup", "hf_release", "runs_v0", "runs_v1"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "SIM", "RUF"]
+ignore = ["E501", "B008", "SIM108", "SIM115", "RUF012", "RUF001", "RUF002", "RUF003"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["plumber"]
+
+[tool.ruff.format]
+quote-style = "double"

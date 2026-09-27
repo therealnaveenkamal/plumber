@@ -7,41 +7,51 @@
 Options are tokenised piecewise (never as one big string) so token spans are exact and the state
 prefix is tokenised alone — which is what makes Option B (cache the state, fork per question) clean.
 """
+
 from __future__ import annotations
-from dataclasses import dataclass, field, asdict
-from typing import Optional, List, Dict, Any
-import json, random
+
+import json
+import random
+from dataclasses import asdict, dataclass, field
+from typing import Any
 
 QTYPES = ("choice", "noul", "score")
+
 
 @dataclass
 class Option:
     name: str
     desc: str = ""
 
+
 @dataclass
 class Row:
     id: str
     state: str
     question: str
-    qtype: str                       # choice | noul | score
-    options: List[Option]            # noul: exactly [yes, no]; score: ordered levels low -> high
-    gold: Optional[int] = None       # index into options, or None (teacher-only row)
-    teacher: Optional[List[float]] = None   # distribution over options in the ORIGINAL order, or None
-    meta: Dict[str, Any] = field(default_factory=dict)
+    qtype: str  # choice | noul | score
+    options: list[Option]  # noul: exactly [yes, no]; score: ordered levels low -> high
+    gold: int | None = None  # index into options, or None (teacher-only row)
+    teacher: list[float] | None = None  # distribution over options in the ORIGINAL order, or None
+    meta: dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self):
         assert self.qtype in QTYPES, self.qtype
-        if self.qtype == "noul": assert len(self.options) == 2
-        if self.gold is not None: assert 0 <= self.gold < len(self.options)
-        if self.teacher is not None: assert len(self.teacher) == len(self.options)
+        if self.qtype == "noul":
+            assert len(self.options) == 2
+        if self.gold is not None:
+            assert 0 <= self.gold < len(self.options)
+        if self.teacher is not None:
+            assert len(self.teacher) == len(self.options)
 
     def to_json(self) -> str:
         return json.dumps(asdict(self), ensure_ascii=False)
 
     @staticmethod
-    def from_json(s: str) -> "Row":
-        d = json.loads(s); d["options"] = [Option(**o) for o in d["options"]]; return Row(**d)
+    def from_json(s: str) -> Row:
+        d = json.loads(s)
+        d["options"] = [Option(**o) for o in d["options"]]
+        return Row(**d)
 
 
 # text markers: plain strings, no special tokens, no embedding resize.
@@ -50,10 +60,14 @@ Q_OPEN, Q_CLOSE = "<|q|> ", " <|/q|>\n"
 O_OPEN, O_CLOSE = "<|opt|> ", " <|/opt|>\n"
 DECIDE = "[DECIDE]"
 
-def _ids(tok, text: str) -> List[int]:
+
+def _ids(tok, text: str) -> list[int]:
     return tok(text, add_special_tokens=False).input_ids
 
-def render(tok, row: Row, rng: Optional[random.Random] = None, shuffle: bool = True, bos: bool = True) -> Dict[str, Any]:
+
+def render(
+    tok, row: Row, rng: random.Random | None = None, shuffle: bool = True, bos: bool = True
+) -> dict[str, Any]:
     """Return token ids for ONE sequence plus the positions every head needs.
 
     keys: input_ids, prefix_len (state only — the Option-B cache boundary), q_start,
@@ -62,9 +76,9 @@ def render(tok, row: Row, rng: Optional[random.Random] = None, shuffle: bool = T
     """
     K = len(row.options)
     perm = list(range(K))
-    if shuffle and row.qtype != "score" and rng is not None:       # never shuffle ordinal levels
+    if shuffle and row.qtype != "score" and rng is not None:  # never shuffle ordinal levels
         rng.shuffle(perm)
-    ids: List[int] = ([tok.bos_token_id] if (bos and tok.bos_token_id is not None) else [])
+    ids: list[int] = [tok.bos_token_id] if (bos and tok.bos_token_id is not None) else []
     ids += _ids(tok, S_OPEN + row.state + S_CLOSE)
     prefix_len = len(ids)
     q_start = len(ids)
@@ -73,19 +87,26 @@ def render(tok, row: Row, rng: Optional[random.Random] = None, shuffle: bool = T
     for j in perm:
         o = row.options[j]
         text = O_OPEN + (f"{o.name}: {o.desc}" if o.desc else o.name) + O_CLOSE
-        s = len(ids); ids += _ids(tok, text); spans.append((s, len(ids)))
+        s = len(ids)
+        ids += _ids(tok, text)
+        spans.append((s, len(ids)))
     ids += _ids(tok, DECIDE)
     inv = {orig: pos for pos, orig in enumerate(perm)}
     return {
-        "input_ids": ids, "prefix_len": prefix_len, "q_start": q_start, "opt_spans": spans, "perm": perm,
+        "input_ids": ids,
+        "prefix_len": prefix_len,
+        "q_start": q_start,
+        "opt_spans": spans,
+        "perm": perm,
         "decide_pos": len(ids) - 1,
         "gold": None if row.gold is None else inv[row.gold],
         "teacher": None if row.teacher is None else [row.teacher[j] for j in perm],
-        "qtype": row.qtype, "id": row.id,
+        "qtype": row.qtype,
+        "id": row.id,
     }
 
 
-def score_signature(state: str, question: str, options: List[Option]):
+def score_signature(state: str, question: str, options: list[Option]):
     """The callable contract every model must satisfy: score(state, question, options) -> logits[K].
     Implemented by PlumbModel.score; documented here so workstreams can build against it."""
     raise NotImplementedError

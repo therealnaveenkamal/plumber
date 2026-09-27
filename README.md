@@ -7,8 +7,9 @@
 [![Model](https://img.shields.io/badge/%F0%9F%A4%97%20Model-totum--labs%2Fplumb-blue)](https://huggingface.co/totum-labs/plumb-nemotron-3.5-lightning-30b-a3b)
 [![License](https://img.shields.io/badge/License-Apache%202.0-green.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue)](pyproject.toml)
+[![CI](https://github.com/therealnaveenkamal/plumber/actions/workflows/ci.yml/badge.svg)](https://github.com/therealnaveenkamal/plumber/actions/workflows/ci.yml)
 
-[Model](https://huggingface.co/totum-labs/plumb-nemotron-3.5-lightning-30b-a3b) · [Data](https://huggingface.co/datasets/totum-labs/plumb-data)
+[Model](https://huggingface.co/totum-labs/plumb-nemotron-3.5-lightning-30b-a3b) · [Data](https://huggingface.co/datasets/totum-labs/plumb-data) · [Docs](docs/) · [Examples](examples/)
 
 </div>
 
@@ -27,7 +28,7 @@ Plumber is built for decisions, not chat:
 - **No decode loop.** The language-model head is deleted at load; decisions are read from the trunk at each option's position. Latency is one prefill.
 - **Type safety by construction.** There is no vocabulary in the graph, so the answer is always one of the supplied options.
 - **Calibrated probabilities** over options, with a chance-corrected confidence, for every question type.
-- **Many questions, one state.** A request carries any number of questions; the state is encoded once.
+- **Prefix caching.** A request carries any number of questions; the state is encoded once and its cache — attention KV and Mamba recurrent states — is forked to every question.
 - **Long states.** 32k-token training window on a 256k-context trunk.
 - **Jev-compatible server.** `POST /v1/systemone` with the TypeSafe request and response schema.
 
@@ -119,7 +120,13 @@ plumber/
   core/          rendering, heads, trunk
   training/      train, eval, export
   data/          converters, splits, contamination screen
+  client.py      HTTP client for a served model
+  metrics.py     accuracy, NLL, Brier, ECE, coverage
 tests/
+examples/      quickstart.py, client.py
+evals/         DecisionBench and JevBench runners
+benchmarks/    serving latency vs. questions per request
+docs/          api.md, serving.md, training.md
 ```
 
 ## Citation
