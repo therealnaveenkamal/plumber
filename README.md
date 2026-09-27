@@ -178,10 +178,9 @@ recurrent state — is forked to each question.
 
 ```bibtex
 @misc{plumb2026,
-  title  = {Plumb: a typed decision model on Nemotron 3.5 Lightning},
-  author = {Kamalakannan, Naveenraj},
-  year   = {2026},
-  url    = {https://huggingface.co/totum-labs/plumb-nemotron-3.5-lightning-30b-a3b}
+  title={Plumb: a typed decision model on Nemotron 3.5 Lightning},
+  author={Kamalakannan, Naveenraj}, year={2026},
+  url={https://huggingface.co/totum-labs/plumb-nemotron-3.5-lightning-30b-a3b}
 }
 ```
 
