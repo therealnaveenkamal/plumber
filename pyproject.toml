@@ -1,0 +1,60 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "plumber"
+version = "0.2.0"
+description = "Give an open LLM a fast, calibrated decision path and serve it natively with vLLM."
+readme = "README.md"
+license = {text = "Apache-2.0"}
+requires-python = ">=3.10"
+authors = [{name = "Naveenraj Kamalakannan"}]
+dependencies = ["torch>=2.6", "transformers>=5.17", "peft>=0.21", "accelerate>=1.9", "huggingface_hub>=0.30", "safetensors", "sentencepiece"]
+
+keywords = ["vllm", "vllm-plugin", "llm", "lora", "decision-making", "calibration", "inference"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+
+[project.optional-dependencies]
+vllm = ["vllm==0.30.0"]
+dev = ["pytest", "ruff", "pre-commit", "fastapi>=0.115", "httpx>=0.27"]
+
+[project.scripts]
+plumber = "plumber.cli:main"
+
+# The vLLM plugin: loaded by every vLLM process on startup; `vllm serve <plumbed model>` needs nothing else.
+[project.entry-points."vllm.general_plugins"]
+plumber = "plumber.serving.vllm:register"
+
+
+[project.urls]
+Repository = "https://github.com/therealnaveenkamal/plumber"
+Documentation = "https://github.com/therealnaveenkamal/plumber/tree/main/docs"
+
+[tool.setuptools.packages.find]
+include = ["plumber*"]
+
+[tool.setuptools.package-data]
+plumber = ["py.typed"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+extend-exclude = ["*.md"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "SIM", "RUF"]
+ignore = ["E501", "B008", "SIM108", "SIM115", "RUF012", "RUF001", "RUF002", "RUF003"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["plumber"]
+
+[tool.ruff.format]
+quote-style = "double"
