@@ -1,4 +1,4 @@
-"""A plumbed model: an ordinary model directory that vLLM (with the plumber plugin) serves natively.
+"""A plumbed model: an ordinary model directory that vLLM (with the plumbify plugin) serves natively.
 
     plumbed-qwen3.5-4b/
       config.json                 the base config, architectures = ["Plumb<BaseArchitecture>"], plus a "plumb" block
@@ -10,7 +10,7 @@
       README.md                   model card
 
 ``vllm serve plumbed-qwen3.5-4b`` loads the base weights through vLLM's own class for the base architecture and
-attaches the plumb (plumber.serving.vllm). ``System1.load(dir)`` loads the same directory with transformers.
+attaches the plumb (plumbify.serving.vllm). ``System1.load(dir)`` loads the same directory with transformers.
 """
 
 from __future__ import annotations
@@ -83,7 +83,7 @@ def package(
     copy: bool = False,
     metrics: dict | None = None,
 ) -> str:
-    """Write the plumbed model directory for a trained plumb (``plumber train-head`` output) on its base."""
+    """Write the plumbed model directory for a trained plumb (``plumbify train-head`` output) on its base."""
     from .artifact import read_spec
 
     spec = read_spec(plumb_dir)
@@ -162,7 +162,7 @@ def write_card(out: str, **kw) -> str:
     return text
 
 
-REPO_URL = "https://github.com/therealnaveenkamal/plumber"
+REPO_URL = "https://github.com/therealnaveenkamal/plumbify"
 EVAL_SETS = {
     "decisionbench_new": "DecisionBench, held-out task families (150)",
     "kev_hard": "Hard-skill templates, held out (105)",
@@ -224,7 +224,7 @@ def card(
         "base_model_relation: adapter",
         "library_name: vllm",
         "pipeline_tag: text-generation",
-        "tags: [plumber, plumb, jev, decision-making, calibration, vllm-plugin, lora]",
+        "tags: [plumbify, plumb, jev, decision-making, calibration, vllm-plugin, lora]",
     ]
     if bench:
         cells = _cells(bench)
@@ -233,7 +233,7 @@ def card(
             f"- name: {name}",
             "  results:",
             "  - task: {type: text-classification, name: Typed decisions}",
-            "    dataset: {type: plumber-heldout-decisions, name: Plumber held-out decisions (447)}",
+            "    dataset: {type: plumbify-heldout-decisions, name: Plumbify held-out decisions (447)}",
             "    metrics:",
             *[
                 f"    - {{type: accuracy, name: Accuracy ({label}), value: {run['accuracy']:.3f}}}"
@@ -254,7 +254,7 @@ def card(
         "Jev-style decision model inside the LLM instead of next to it. The base weights are unchanged, so the model",
         f"chats, reasons and calls tools exactly like `{base}`.",
         "",
-        f"Made with [Plumber]({REPO_URL}) and served by vLLM through the Plumber plugin.",
+        f"Made with [Plumbify]({REPO_URL}) and served by vLLM through the Plumbify plugin.",
     ]
 
     if bench:
@@ -319,7 +319,7 @@ def card(
         "## Use",
         "",
         "```bash",
-        f'pip install "plumber[vllm] @ git+{REPO_URL}"',
+        'pip install "plumbify[vllm]"',
         f"vllm serve {ref}",
         "```",
         "",
@@ -356,7 +356,7 @@ def card(
         "",
         "## Training",
         "",
-        f"`plumber plumbify` on {train.get('rows', 'about 10k')} decision rows drawn from about 200 decision families",
+        f"`plumbify train` on {train.get('rows', 'about 10k')} decision rows drawn from about 200 decision families",
         "(support, finance, coding, safety, medicine, law, engineering) plus solver-labelled hard-skill rows, one epoch,",
         f"{train.get('hardware', 'one A100 80 GB')}"
         + (f", {train['minutes']} minutes" if train.get("minutes") else "")
@@ -365,7 +365,7 @@ def card(
         "",
         "## Limitations",
         "",
-        "- Needs vLLM 0.30.0 with the Plumber plugin, on one GPU (no tensor or pipeline parallelism).",
+        "- Needs vLLM 0.30.0 with the Plumbify plugin, on one GPU (no tensor or pipeline parallelism).",
         "- The results above are for decisions stated in the prompt. Decisions the model hands off mid-generation use the",
         "  same head but see the whole conversation as context, which training did not include.",
         "- The training decisions are in English. The plumb chooses among the options it is given; it is not a",
@@ -379,8 +379,8 @@ def card(
         "## Citation",
         "",
         "```bibtex",
-        "@misc{plumber2026,",
-        "  title  = {Plumber: a System 1 decision branch for open language models},",
+        "@misc{plumbify2026,",
+        "  title  = {Plumbify: a System 1 decision branch for open language models},",
         "  author = {Kamalakannan, Naveenraj},",
         "  year   = {2026},",
         f"  url    = {{{REPO_URL}}}",

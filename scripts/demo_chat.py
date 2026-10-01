@@ -116,13 +116,6 @@ THINK_CLOSE = ("</think>", "<channel|>")
 HOLD = max(map(len, THINK_OPEN + THINK_CLOSE))
 
 
-def report(path: str | None, **row) -> None:
-    """Append one JSON line (a turn's start or end) for scripts/demo/status.py."""
-    if path:
-        with open(path, "a") as f:
-            f.write(json.dumps(row) + "\n")
-
-
 def turn(
     client: httpx.Client, url: str, model: str, messages: list, opts: dict, c: Colors
 ) -> list[dict]:
@@ -138,8 +131,6 @@ def turn(
     if opts.get("tool_prompt") and not opts["plumb"]:
         body |= {"tools": [UNRELATED_TOOL], "tool_choice": "none"}
     new, content, n_dec, t0, thinking, finish = [], "", 0, time.time(), False, None
-    opts["turn"] = opts.get("turn", 0) + 1
-    report(opts.get("report"), turn=opts["turn"], start=t0)
     # Without the plumb, vLLM's own handler returns the model's thinking inline. Keep special tokens so the end of
     # thinking is visible for every model (Gemma's markers are special tokens, Qwen's are not).
     inline_think, pending = opts["think"] and not opts["plumb"], ""
@@ -227,7 +218,6 @@ def turn(
         sys.stdout.write(f"{c.dim}{pending}{c.reset}")
     new.append({"role": "assistant", "content": content.strip()})
     took = time.time() - t0
-    report(opts.get("report"), turn=opts["turn"], seconds=round(took, 2), decisions=n_dec)
     how = (
         f"{n_dec} plumb decision{'s' * (n_dec != 1)}"
         if opts["plumb"]
@@ -253,9 +243,6 @@ def main():
         help='the normal model ("plumb": false), for comparison',
     )
     ap.add_argument(
-        "--report", default=None, help="append per-turn timings to this file (JSON lines)"
-    )
-    ap.add_argument(
         "--tool-prompt",
         action="store_true",
         help="with --no-plumb: list an unrelated tool, so the prompt is shaped like the plumbed model's",
@@ -267,7 +254,6 @@ def main():
         "trust": a.trust,
         "max_tokens": a.max_tokens,
         "plumb": not a.no_plumb,
-        "report": a.report,
         "tool_prompt": a.tool_prompt,
     }
     system, history = a.system, []

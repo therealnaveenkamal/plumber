@@ -6,11 +6,11 @@ import pytest
 import torch
 import torch.nn.functional as F
 
-from plumber.calibration import coverage, fit_conformal, fit_temperature, rescale
-from plumber.core.decision_head import decision_loss
-from plumber.core.row import Option, Row
-from plumber.metrics import brier, coverage_at_error, ece, summarize
-from plumber.training.data import load_rows
+from plumbify.calibration import coverage, fit_conformal, fit_temperature, rescale
+from plumbify.core.decision_head import decision_loss
+from plumbify.core.row import Option, Row
+from plumbify.metrics import brier, coverage_at_error, ece, summarize
+from plumbify.training.data import load_rows
 
 
 def overconfident(n=400, seed=0):

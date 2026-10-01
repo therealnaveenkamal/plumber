@@ -1,8 +1,8 @@
 """Train a plumb: a decision head that reads the frozen base model at several layers, and (with ``--suffix_lora``)
-a LoRA that acts on decision tokens only. The base weights get no gradient. ``plumber plumbify`` runs this step and
+a LoRA that acts on decision tokens only. The base weights get no gradient. ``plumbify train`` runs this step and
 then packages the result.
 
-  plumber train-head --base Qwen/Qwen3.5-9B --rows train.jsonl --dev dev.jsonl --out runs/qwen3.5-9b --suffix_lora
+  plumbify train-head --base Qwen/Qwen3.5-9B --rows train.jsonl --dev dev.jsonl --out runs/qwen3.5-9b --suffix_lora
 
 At the end it evaluates on --dev, fits temperature and a split-conformal threshold there (alpha from --alpha), and
 writes ``<out>/final`` (plumb.json + head.safetensors), ``dev_preds.jsonl`` and ``metrics.json``.

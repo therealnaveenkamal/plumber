@@ -1,0 +1,53 @@
+name: Bug report
+description: Something is broken or gives wrong results.
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you ran, what you expected, and what you got instead. Include the full error or log.
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: How to reproduce
+      description: The smallest command, request or script that shows the problem.
+      render: shell
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Training (train, train-head, eval-head)
+        - Serving (vLLM plugin, chat completions API)
+        - Recipes or scripts
+        - Docs
+        - Other
+    validations:
+      required: true
+  - type: input
+    id: model
+    attributes:
+      label: Base model
+      placeholder: Qwen/Qwen3.5-9B
+  - type: textarea
+    id: env
+    attributes:
+      label: Environment
+      description: Plumbify version or commit, vLLM, torch and transformers versions, GPU, OS.
+      placeholder: |
+        plumbify 0.2.0 (commit ...)
+        vllm 0.30.0, torch ..., transformers ...
+        1x A100 80 GB, Ubuntu 22.04
+    validations:
+      required: true
+  - type: textarea
+    id: check
+    attributes:
+      label: scripts/vllm_check.py output
+      description: For serving issues, the output of the parity check on the same model, if you can run it.
+      render: text

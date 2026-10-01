@@ -6,10 +6,10 @@ import json
 import pytest
 import torch
 
-from plumber.branch import Assistant, CacheCheckpoint, Frames, decide_on_cache, decision_suffix
-from plumber.core.decision_head import SuffixBatch
-from plumber.core.row import Option, Row
-from plumber.system1 import System1
+from plumbify.branch import Assistant, CacheCheckpoint, Frames, decide_on_cache, decision_suffix
+from plumbify.core.decision_head import SuffixBatch
+from plumbify.core.row import Option, Row
+from plumbify.system1 import System1
 from tests.test_system1 import ChatTok
 
 qwen = pytest.importorskip("transformers.models.qwen3_5.modeling_qwen3_5")
@@ -183,7 +183,7 @@ def test_generation_with_a_mid_stream_decision():
 
 
 def test_parse_both_tool_call_formats():
-    from plumber.branch import parse_tool_call
+    from plumbify.branch import parse_tool_call
 
     j = parse_tool_call(
         '{"name": "plumb_decide", "arguments": {"question": "Q?", "options": [{"name": "a"}]}}'

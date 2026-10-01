@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Guide
+    url: https://github.com/therealnaveenkamal/plumbify/blob/main/docs/guide.md
+    about: Install, training data, the serving API and troubleshooting.

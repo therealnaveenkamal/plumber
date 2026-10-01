@@ -1,0 +1,21 @@
+name: Feature or model request
+description: Suggest a feature, or ask for support for a new model or architecture.
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What you are trying to do
+      description: The problem or use case, and why the current behaviour falls short.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposal
+      description: What you would like Plumbify to do. For a new model, give its Hugging Face id and architecture.
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives
+      description: Workarounds or other approaches you have considered.

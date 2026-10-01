@@ -1,11 +1,11 @@
 """Plumbify an open model: train its plumb and write a plumbed model directory that vLLM serves natively.
 
-  plumber plumbify --base Qwen/Qwen3.5-9B --rows train.jsonl --dev dev.jsonl --out plumbed-qwen3.5-9b
+  plumbify train --base Qwen/Qwen3.5-9B --rows train.jsonl --dev dev.jsonl --out plumbed-qwen3.5-9b
   vllm serve plumbed-qwen3.5-9b
 
-Steps: (1) train the decision head and the suffix-only LoRA on the frozen base (``plumber train-head
+Steps: (1) train the decision head and the suffix-only LoRA on the frozen base (``plumbify train-head
 --suffix_lora``), (2) calibrate on --dev (temperature and a conformal threshold), (3) package the plumbed model
-directory (plumber/plumbed.py). The base weights are never modified.
+directory (plumbify/plumbed.py). The base weights are never modified.
 """
 
 from __future__ import annotations
@@ -22,15 +22,15 @@ def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--base", required=True, help="any Hugging Face causal / image-text LM")
     ap.add_argument(
-        "--rows", default=os.environ.get("PLUMBER_ROWS"), help="training rows (plumb Row JSONL)"
+        "--rows", default=os.environ.get("PLUMBIFY_ROWS"), help="training rows (plumb Row JSONL)"
     )
     ap.add_argument(
-        "--dev", default=os.environ.get("PLUMBER_DEV"), help="held-out rows for calibration"
+        "--dev", default=os.environ.get("PLUMBIFY_DEV"), help="held-out rows for calibration"
     )
     ap.add_argument("--out", required=True, help="the plumbed model directory to write")
     ap.add_argument("--work", default=None, help="training directory (default: <out>.train)")
-    ap.add_argument("--epochs", type=float, default=1.0)
-    ap.add_argument("--lora_r", type=int, default=32)
+    ap.add_argument("--epochs", type=float, default=1.0, help="passes over --rows (default 1)")
+    ap.add_argument("--lora_r", type=int, default=32, help="suffix LoRA rank (default 32)")
     ap.add_argument(
         "--no_lora", action="store_true", help="head only (no suffix LoRA): cheaper, weaker"
     )
@@ -40,10 +40,15 @@ def main(argv=None):
     ap.add_argument(
         "--limit", type=int, default=None, help="train on the first N rows (smoke runs)"
     )
-    ap.add_argument("--tokens_per_batch", type=int, default=32768)
+    ap.add_argument(
+        "--tokens_per_batch",
+        type=int,
+        default=32768,
+        help="padded tokens per training batch (default 32768); lower it if training runs out of memory",
+    )
     a, extra = ap.parse_known_args(argv)
     if not a.rows:
-        ap.error("--rows is required (or set PLUMBER_ROWS)")
+        ap.error("--rows is required (or set PLUMBIFY_ROWS)")
     work = a.work or f"{a.out.rstrip('/')}.train"
     args = [
         "--base",

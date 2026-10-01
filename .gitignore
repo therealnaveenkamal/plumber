@@ -1,4 +1,5 @@
 __pycache__/
+.DS_Store
 *.pyc
 *.egg-info/
 .pytest_cache/
@@ -10,4 +11,5 @@ __pycache__/
 *.safetensors
 *.pt
 *.log
-docs/*.mp4
+dist/
+build/

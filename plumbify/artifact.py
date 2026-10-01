@@ -4,7 +4,7 @@
     head.safetensors              the decision head
     suffix_adapter.json/.safetensors   the suffix-only LoRA (absent when trained with --no_lora)
 
-``plumber train-head`` writes this layout; ``plumber package`` (plumber/plumbed.py) combines it with the base model
+``plumbify train-head`` writes this layout; ``plumbify package`` (plumbify/plumbed.py) combines it with the base model
 into a plumbed model directory. Paths can be local directories or Hugging Face Hub repos.
 """
 
@@ -16,7 +16,7 @@ import os
 from dataclasses import dataclass, field
 
 FORMAT = "plumb/2"
-RENDER_VERSION = 2  # plumber.core.render: bump when the decision text layout changes
+RENDER_VERSION = 2  # plumbify.core.render: bump when the decision text layout changes
 
 
 @dataclass

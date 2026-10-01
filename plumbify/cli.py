@@ -1,4 +1,4 @@
-"""``plumber <command>``: each command is a module with ``main()``."""
+"""``plumbify <command>``: each command is a module with ``main()``."""
 
 from __future__ import annotations
 
@@ -7,19 +7,22 @@ import importlib
 import sys
 
 COMMANDS = {
-    "plumbify": (
-        "plumber.training.plumbify",
+    "train": (
+        "plumbify.training.train",
         "train a plumb on an open model and write a plumbed model directory for vLLM",
     ),
     "package": (None, "turn a trained plumb into a plumbed model directory"),
-    "train-head": ("plumber.training.train_head", "train a plumb (the step plumbify runs)"),
-    "eval-head": ("plumber.training.eval_head", "evaluate a plumb, or the base model zero-shot"),
+    "train-head": (
+        "plumbify.training.train_head",
+        "train and calibrate a plumb only (the first step of train)",
+    ),
+    "eval-head": ("plumbify.training.eval_head", "evaluate a plumb, or the base model zero-shot"),
 }
 
 
 def _usage() -> str:
     w = max(map(len, COMMANDS))
-    return "usage: plumber <command> [args]\n\n" + "\n".join(
+    return "usage: plumbify <command> [args]\n\n" + "\n".join(
         f"  {k:<{w}}  {v[1]}" for k, v in COMMANDS.items()
     )
 
@@ -27,7 +30,7 @@ def _usage() -> str:
 def _package(rest: list[str]) -> int:
     from .plumbed import package
 
-    ap = argparse.ArgumentParser("plumber package")
+    ap = argparse.ArgumentParser("plumbify package")
     ap.add_argument("plumb", help="trained plumb directory (plumb.json, head, suffix adapter)")
     ap.add_argument("out", help="plumbed model directory to write")
     ap.add_argument("--base", default=None, help="override the base model recorded in plumb.json")
@@ -50,7 +53,7 @@ def main(argv=None) -> int:
         return 2
     if cmd == "package":
         return _package(rest)
-    sys.argv = [f"plumber {cmd}", *rest]  # command modules parse sys.argv
+    sys.argv = [f"plumbify {cmd}", *rest]  # command modules parse sys.argv
     return importlib.import_module(COMMANDS[cmd][0]).main() or 0
 
 

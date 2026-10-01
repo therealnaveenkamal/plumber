@@ -7,9 +7,9 @@ import os
 
 import torch
 
-from plumber.plumbed import package
-from plumber.serving.vllm.decisions import find_decision, pick, resolve
-from plumber.system1 import System1
+from plumbify.plumbed import package
+from plumbify.serving.vllm.decisions import find_decision, pick, resolve
+from plumbify.system1 import System1
 from tests.test_system1 import rows, system1
 
 
@@ -52,7 +52,7 @@ def test_package_roundtrip(tmp_path):
 
 
 def test_stream_split():
-    from plumber.serving.vllm.openai import Split
+    from plumbify.serving.vllm.openai import Split
 
     sp = Split()
     sp.start(in_think=True)  # Qwen-style: the prompt already opened <think>
@@ -72,8 +72,8 @@ def test_stream_split():
 
 
 def test_announce_and_normalize():
-    from plumber.serving.vllm.client import Decider
-    from plumber.serving.vllm.openai import PLUMB_NOTE, announce
+    from plumbify.serving.vllm.client import Decider
+    from plumbify.serving.vllm.openai import PLUMB_NOTE, announce
 
     msgs = announce([{"role": "user", "content": "hi"}])
     assert msgs[0] == {"role": "system", "content": PLUMB_NOTE}
@@ -111,8 +111,8 @@ def test_stated_decisions():
 
 
 def test_gemma_markup():
-    from plumber.branch import Markup, parse_tool_call
-    from plumber.serving.vllm.openai import Split
+    from plumbify.branch import Markup, parse_tool_call
+    from plumbify.serving.vllm.openai import Split
 
     m = Markup("<|tool_call>", "<tool_call|>", "<|channel>thought", "<channel|>")
     body = (

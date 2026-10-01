@@ -1,6 +1,6 @@
 """Plumbed models in vLLM: any supported base architecture, generating normally and deciding from its own KV cache.
 
-A plumbed model directory (``plumber plumbify`` / ``plumber export``) is an ordinary model directory whose
+A plumbed model directory (``plumbify train`` / ``plumbify package``) is an ordinary model directory whose
 ``config.json`` names ``Plumb<BaseArchitecture>`` and which also holds the plumb (``plumb.json``, ``head.safetensors``,
 ``suffix_adapter.*``). ``Plumb<Arch>`` is created on demand here as a subclass of vLLM's own class for ``<Arch>``; the
 base weights load through the base class unchanged, then the plumb is attached:
@@ -27,7 +27,7 @@ from torch import nn
 
 from ...plumbed import PLUMB_PREFIX
 
-logger = logging.getLogger("vllm.plumber")  # inherits vLLM's log handlers and format
+logger = logging.getLogger("vllm.plumbify")  # inherits vLLM's log handlers and format
 
 _KEY = re.compile(r"^layers\.(\d+)\.(.+)\.lora_([AB])\.default\.weight$")
 MISSING = (
@@ -43,7 +43,7 @@ def find_plumb_dir(vllm_config) -> str:
     path = plumb_dir(model)
     if path is None:
         raise ValueError(
-            f"{model} is not a plumbed model (no plumb.json); run `plumber plumbify` first"
+            f"{model} is not a plumbed model (no plumb.json); run `plumbify train` first"
         )
     return path
 
@@ -254,7 +254,7 @@ class PlumbMixin:
         path = find_plumb_dir(vllm_config)
         if not vllm_config.cache_config.enable_prefix_caching:
             logger.warning(
-                "plumber: prefix caching is off, so every decision recomputes its whole context; "
+                "plumbify: prefix caching is off, so every decision recomputes its whole context; "
                 "leave it on (the vLLM default) for decisions that reuse the generator's KV cache"
             )
         text_model, prefix = find_text_model(self)
@@ -264,7 +264,7 @@ class PlumbMixin:
         dev = next(text_model.parameters()).device
         self.plumb = PlumbState(path, max_tokens, hidden, dev, vllm_config.model_config.dtype)
         # vLLM-internal: EAGLE-3 aux states (vllm/model_executor/models/interfaces.py EagleModelMixin): aux index
-        # i + 1 is hidden + residual after decoder layer i, the residual stream plumber taps as layer i.
+        # i + 1 is hidden + residual after decoder layer i, the residual stream plumbify taps as layer i.
         aux = sorted({t + 1 for t in self.plumb.taps if t != -1})
         text_model.aux_hidden_state_layers = tuple(aux)
         self._plumb_aux_pos = {a - 1: k for k, a in enumerate(aux)}
@@ -292,7 +292,7 @@ class PlumbMixin:
                 self._plumb_k_eq_v,
             )
             logger.info(
-                "plumber: %s with a suffix adapter on %d layers, taps %s, head %.1fM params",
+                "plumbify: %s with a suffix adapter on %d layers, taps %s, head %.1fM params",
                 type(self).__name__,
                 n,
                 self.plumb.taps,
@@ -353,7 +353,7 @@ def make_plumb_class(arch: str) -> type:
     return cls
 
 
-# "plumber.serving.vllm.model:Plumb<Arch>", resolved lazily by vLLM's registry
+# "plumbify.serving.vllm.model:Plumb<Arch>", resolved lazily by vLLM's registry
 def __getattr__(
     name,
 ):

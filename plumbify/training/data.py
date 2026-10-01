@@ -6,7 +6,7 @@ from ..core.row import Row
 
 
 def load_rows(path: str, limit: int | None = None) -> list[Row]:
-    """Rows from a JSONL file, one decision per line (see ``plumber.core.row.Row``)."""
+    """Rows from a JSONL file, one decision per line (see ``plumbify.core.row.Row``)."""
     rows = []
     with open(path) as f:
         for line in f:

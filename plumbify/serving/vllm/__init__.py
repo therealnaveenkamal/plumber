@@ -1,6 +1,6 @@
-"""vLLM plugin: native serving of plumbed models. ``pip install plumber`` and::
+"""vLLM plugin: native serving of plumbed models. ``pip install plumbify`` and::
 
-    vllm serve ./plumbed-qwen3.5-4b          # a directory made by `plumber plumbify`
+    vllm serve ./plumbed-qwen3.5-4b          # a directory made by `plumbify train`
 
 The model generates exactly like its base; ``/v1/chat/completions`` gains a System 1 decision path that answers
 routine judgements from the same KV cache (see model.py, hooks.py, openai.py). No extra flags or environment.
@@ -51,8 +51,8 @@ def _check_version() -> None:
     _warned = True
     import logging
 
-    logging.getLogger("vllm.plumber").warning(
-        "plumber's vLLM plugin is tested with vLLM %s; this is vLLM %s. It hooks vLLM internals, so check a plumbed "
+    logging.getLogger("vllm.plumbify").warning(
+        "plumbify's vLLM plugin is tested with vLLM %s; this is vLLM %s. It hooks vLLM internals, so check a plumbed "
         "model with scripts/vllm_check.py (parity with transformers) before trusting its decisions.",
         " / ".join(TESTED_VLLM),
         vllm.__version__,
@@ -75,7 +75,7 @@ def register() -> None:
             continue
         name = PLUMB_PREFIX + arch
         if name not in known:
-            ModelRegistry.register_model(name, f"plumber.serving.vllm.model:{name}")
+            ModelRegistry.register_model(name, f"plumbify.serving.vllm.model:{name}")
         if name not in vllm_model_configs.MODELS_CONFIG_MAP:
             vllm_model_configs.MODELS_CONFIG_MAP[name] = _config_hook(
                 vllm_model_configs.MODELS_CONFIG_MAP.get(arch)

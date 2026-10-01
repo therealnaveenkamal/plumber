@@ -1,4 +1,5 @@
-"""Decision metrics: accuracy, NLL, Brier, ECE, coverage at an error budget. Pure Python; used by eval and evals/."""
+"""Decision metrics: accuracy, NLL, Brier, ECE, coverage at an error budget. Pure Python; used by train-head and
+eval-head."""
 
 from __future__ import annotations
 

@@ -1,7 +1,7 @@
 """Evaluate a plumb, or the base model zero-shot, on labelled rows.
 
-  plumber eval-head --plumb runs/qwen4b-s1/final --rows data/decisionbench/test_ood.jsonl --out runs/qwen4b-s1/eval_ood
-  plumber eval-head --zeroshot --base Qwen/Qwen3.5-4B --rows ... --out runs/qwen4b-zeroshot/eval_ood
+  plumbify eval-head --plumb runs/qwen4b-s1/final --rows data/decisionbench/test_ood.jsonl --out runs/qwen4b-s1/eval_ood
+  plumbify eval-head --zeroshot --base Qwen/Qwen3.5-4B --rows ... --out runs/qwen4b-zeroshot/eval_ood
 
 Zero-shot renders the same decision turn and scores each option name as the
 model's answer: the mean log-probability of the name's tokens after the assistant-open. No training, no head.

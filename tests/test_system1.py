@@ -6,8 +6,8 @@ import random
 
 import torch
 
-from plumber.core.row import Option, Row
-from plumber.system1 import System1
+from plumbify.core.row import Option, Row
+from plumbify.system1 import System1
 from tests.tiny import tiny
 
 

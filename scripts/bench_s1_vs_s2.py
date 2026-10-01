@@ -83,7 +83,7 @@ MODEL = {"name": None}  # the served model id, read from /v1/models
 
 def _resolve(choice, names):
     """The option a system answer names ("Low" names "Low: Reversible edit ..." when it is the only match)."""
-    from plumber.serving.vllm.decisions import _matches
+    from plumbify.serving.vllm.decisions import _matches
 
     if choice is None:
         return None

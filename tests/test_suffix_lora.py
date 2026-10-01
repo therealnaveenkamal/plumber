@@ -74,7 +74,7 @@ def test_roundtrip(tmp_path):
     s1, _ = adapted(3)
     s1.save(str(tmp_path), base_model="tiny")
     fresh = system1(3).eval()  # same random base, no adapter
-    from plumber.system1 import System1
+    from plumbify.system1 import System1
 
     s2 = System1.load(str(tmp_path), lm=fresh.lm, tok=fresh.tok).float()
     assert s2.suffix_lora is not None

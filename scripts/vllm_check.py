@@ -19,7 +19,7 @@ import time
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--model", required=True, help="a plumbed model directory (plumber plumbify)")
+    ap.add_argument("--model", required=True, help="a plumbed model directory (plumbify train)")
     ap.add_argument("--rows", required=True)
     ap.add_argument("--ref", default=None, help="System1 preds.jsonl for the same rows")
     ap.add_argument("--n", type=int, default=200)
@@ -31,12 +31,12 @@ def main():
     from transformers import AutoTokenizer
     from vllm import LLM, SamplingParams
 
-    from plumber.artifact import read_spec
-    from plumber.branch import Frames, Markup, parse_tool_call
-    from plumber.calibration import rescale
-    from plumber.core.tool import row_from_tool_args, tool_schema
-    from plumber.serving.vllm.client import mid_generation_request, read_probs, standalone_request
-    from plumber.training.data import load_rows
+    from plumbify.artifact import read_spec
+    from plumbify.branch import Frames, Markup, parse_tool_call
+    from plumbify.calibration import rescale
+    from plumbify.core.tool import row_from_tool_args, tool_schema
+    from plumbify.serving.vllm.client import mid_generation_request, read_probs, standalone_request
+    from plumbify.training.data import load_rows
 
     spec = read_spec(a.model)
     tok = AutoTokenizer.from_pretrained(a.model)

@@ -27,7 +27,7 @@ from fastapi.responses import JSONResponse, StreamingResponse
 
 from ...plumbed import plumb_dir
 
-logger = logging.getLogger("vllm.plumber")  # inherits vLLM's log handlers and format
+logger = logging.getLogger("vllm.plumbify")  # inherits vLLM's log handlers and format
 
 PLUMB_NOTE = (
     "You have a System 1 decision module attached, available as the plumb_decide tool. It makes routine "
@@ -65,7 +65,7 @@ def find_plumb(model: str) -> str | None:
         return plumb_dir(model)
     except Exception as e:  # offline, gated or missing on the Hub
         logger.warning(
-            "plumber: could not look for a plumb in %s (%s); serving without it", model, e
+            "plumbify: could not look for a plumb in %s (%s); serving without it", model, e
         )
         return None
 
@@ -236,7 +236,7 @@ async def handle(raw: Request, original):
         return await passthrough(raw, original, body)
     reason = unsupported(body)
     if reason is not None:
-        logger.info("plumber: request uses %s; served by vLLM's handler without the plumb", reason)
+        logger.info("plumbify: request uses %s; served by vLLM's handler without the plumb", reason)
         return await passthrough(raw, original, body)
     opts = opts if isinstance(opts, dict) else {}
     try:
@@ -379,6 +379,6 @@ async def stream(decider, req: dict, cid: str, created: int, model: str, body: d
         yield f"data: {json.dumps({'error': {'message': str(e)[:300], 'type': 'BadRequestError'}})}\n\n"
     except Exception as e:
         # the stream has started: report the failure in-band instead of cutting it off
-        logger.exception("plumber: streaming request failed")
+        logger.exception("plumbify: streaming request failed")
         yield f"data: {json.dumps({'error': {'message': str(e)[:300], 'type': 'InternalServerError'}})}\n\n"
     yield "data: [DONE]\n\n"

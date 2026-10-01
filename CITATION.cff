@@ -1,0 +1,17 @@
+cff-version: 1.2.0
+message: "If you use Plumbify, please cite it as below."
+type: software
+title: "Plumbify: a System 1 decision branch for open language models"
+authors:
+  - family-names: Kamalakannan
+    given-names: Naveenraj
+version: 0.2.0
+date-released: 2026-10-01
+license: Apache-2.0
+repository-code: "https://github.com/therealnaveenkamal/plumbify"
+keywords:
+  - large language models
+  - vLLM
+  - decision making
+  - calibration
+  - LoRA

@@ -1,6 +1,6 @@
 """Calibration: one temperature, a split-conformal threshold, and the System 1 -> System 2 escalation it implies.
 
-Everything works on prediction rows ``{"probs": [...], "gold": int}`` as written by ``plumber eval`` (probs at T = 1).
+Everything works on prediction rows ``{"probs": [...], "gold": int}`` as written by ``plumbify eval-head`` (probs at T = 1).
 
 - ``fit_temperature``: NLL-optimal T; moves confidence, never the winning option.
 - ``fit_conformal``:   split conformal with the LAC score s = 1 - p_gold. ``prediction_set`` then contains the gold

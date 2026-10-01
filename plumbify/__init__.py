@@ -1,6 +1,6 @@
-"""Plumber: a fast decision path (System 1) for open language models, served natively by vLLM.
+"""Plumbify: a fast decision path (System 1) for open language models, served natively by vLLM.
 
-    plumber plumbify --base Qwen/Qwen3.5-9B --rows train.jsonl --dev dev.jsonl --out plumbed-qwen3.5-9b
+    plumbify train --base Qwen/Qwen3.5-9B --rows train.jsonl --dev dev.jsonl --out plumbed-qwen3.5-9b
     vllm serve plumbed-qwen3.5-9b
 
 In Python, ``System1`` runs a plumb with transformers (training, evaluation, the reference implementation).

@@ -13,7 +13,7 @@
 #   MAX_LEN          vLLM --max-model-len (default 32768)
 #   MAX_NUM_SEQS     vLLM --max-num-seqs (unset: vLLM's default)
 #   COPY=1           copy the base weights into the plumbed directory instead of linking them (to ship it)
-#   PLUMBER, VLLM, PYTHON   the training env's `plumber`, the serving env's `vllm` and `python` (default: on PATH)
+#   PLUMBIFY, VLLM, PYTHON   the training env's `plumbify`, the serving env's `vllm` and `python` (default: on PATH)
 #   PORT             server port (default 8000)
 set -euo pipefail
 
@@ -25,7 +25,7 @@ shift 2
 TPB=${TPB:-32768}
 GPU_UTIL=${GPU_UTIL:-0.7}
 MAX_LEN=${MAX_LEN:-32768}
-PLUMBER=${PLUMBER:-plumber}
+PLUMBIFY=${PLUMBIFY:-plumbify}
 VLLM=${VLLM:-vllm}
 PYTHON=${PYTHON:-python}
 PORT=${PORT:-8000}
@@ -34,8 +34,8 @@ REPO=$(cd "$(dirname "$0")/.." && pwd)
 SEQS=()
 [ -n "${MAX_NUM_SEQS:-}" ] && SEQS=(--max-num-seqs "$MAX_NUM_SEQS")
 
-echo "== 1/4 plumbify $BASE -> $OUT"
-"$PLUMBER" plumbify --base "$BASE" --rows "$ROWS" --dev "$DEV" --out "$OUT" --tokens_per_batch "$TPB" \
+echo "== 1/4 train $BASE -> $OUT"
+"$PLUMBIFY" train --base "$BASE" --rows "$ROWS" --dev "$DEV" --out "$OUT" --tokens_per_batch "$TPB" \
     ${COPY:+--copy}
 
 echo "== 2/4 parity: vLLM vs transformers on 200 dev rows"
