@@ -283,7 +283,10 @@ def main():
     label = "WITH PLUMB" if opts["plumb"] else "NORMAL MODEL"
     colour = "\033[1;30;48;5;114m" if opts["plumb"] else "\033[1;97;48;5;124m"
     banner = f"{colour}  {label}  {c.reset}" if c.bold else label
-    print(f"{banner}  {c.dim}{model} · thinking {'on' if opts['think'] else 'off'}{c.reset}\n")
+    shown = (
+        model if opts["plumb"] else model.removesuffix("-plumb")
+    )  # the normal pane shows the base model's name
+    print(f"{banner}  {c.dim}{shown} · thinking {'on' if opts['think'] else 'off'}{c.reset}\n")
     while True:
         try:
             user = input(f"{c.bold}you:{c.reset} ").strip()
