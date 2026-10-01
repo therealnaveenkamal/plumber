@@ -19,13 +19,13 @@ Sleep 3s
 Show
 
 Sleep 1.5s
-Type "Hi! I'm covering the support inbox today. Can you help me triage a few tickets?"
+Type "Hey, I'm on call tonight for the payments service. Can you help me make quick calls if something breaks?"
 Sleep 500ms
 Enter
 Wait+Screen@90s /NORMAL MODEL\s+\d+\.\d s\s+WITH PLUMB\s+\d+\.\d s/
 Sleep 2s
 
-Type "First one: 'I was charged twice for invoice 4411 and now the app keeps logging me out. Fix it today or I cancel.' Which team should take it? One line, please."
+Type "Alert just fired: p99 latency on checkout went from 180 ms to 2.4 s right after the 21:05 deploy, error rate is 1.8%, database and CPU look normal. What should I do? One line, please."
 Sleep 500ms
 Enter
 Wait+Screen@120s /faster with the plumb/

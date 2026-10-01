@@ -24,7 +24,7 @@ with contextlib.suppress(ImportError):
     import readline  # noqa: F401  (line editing and history for input())
 
 # A plain system prompt: with the plumb on, the server tells the model about its decision module itself
-DEFAULT_SYSTEM = "You are a helpful assistant for ACME's support team."
+DEFAULT_SYSTEM = "You are a helpful assistant."
 
 
 class Colors:
