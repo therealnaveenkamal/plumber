@@ -1,4 +1,4 @@
-# Side-by-side demo: the normal model (thinking on) and the same model with its plumb, one server, real time.
+# Side-by-side demo: the normal model and the same model with its plumb, thinking on in both, one server, real time.
 #   vhs scripts/demo/demo.tape && scripts/demo/make_gif.sh
 # Needs vhs, tmux and ffmpeg, and a plumbed model served on localhost:8000.
 Output "docs/demo.mp4"

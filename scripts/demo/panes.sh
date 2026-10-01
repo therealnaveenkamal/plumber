@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# Side-by-side demo on one server: left, the normal model (thinking on); right, the same model with its plumb.
-# Keystrokes go to both panes at once, so each message starts both runs together. The bar at the bottom compares
-# the two turn by turn.
+# Side-by-side demo on one server: left, the normal model; right, the same model with its plumb. Thinking is on in
+# both panes (PLUMB_THINK=0 turns it off on the plumb side). Keystrokes go to both panes at once, so each message
+# starts both runs together. The bar at the bottom compares the two turn by turn.
 #
 #   URL=http://localhost:8000 scripts/demo/panes.sh
 set -euo pipefail
@@ -15,7 +15,9 @@ T="tmux -u -L plumb-demo -f /dev/null"
 $T kill-server 2> /dev/null || true
 $T new-session -d -s demo -x "${COLS:-200}" -y "${ROWS:-50}" \
     "$CHAT --no-plumb --think --max_tokens 4000 --report $DIR/normal.jsonl"
-$T split-window -h -t demo "$CHAT --report $DIR/plumb.jsonl"
+PLUMB_ARGS="--max_tokens 4000 --report $DIR/plumb.jsonl"
+[ "${PLUMB_THINK:-1}" = 1 ] && PLUMB_ARGS="--think $PLUMB_ARGS"
+$T split-window -h -t demo "$CHAT $PLUMB_ARGS"
 $T set -t demo pane-border-status top
 $T set -t demo pane-border-lines heavy
 $T set -t demo pane-border-format \

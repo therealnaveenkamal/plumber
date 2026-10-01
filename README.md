@@ -23,8 +23,8 @@ already filled, with a calibrated probability for every option.
 
 ![The normal model next to the plumbed model, on the same server](docs/demo.gif)
 
-*Qwen3.5-35B-A3B on one A100, real time. The same messages go to both sides. Left: the normal model with thinking on.
-Right: the plumbed model, which hands the decision to its plumb mid-reply.*
+*Qwen3.5-35B-A3B on one A100, real time, thinking on in both panes. The same messages go to both sides. Left: the
+normal model. Right: the same model with its plumb, which hands the decision to System 1 mid-reply.*
 
 **A plumb is a Jev model built into the LLM.** It answers the same kind of typed decision as a Jev-style decision
 model such as TypeSafe's Jev: pick one of these options, yes or no, or a score on a scale. The difference is that it
