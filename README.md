@@ -21,6 +21,11 @@ plugin installed, `vllm serve` loads the result like any other model. The model 
 conversation reaches a decision, the plumb answers it in one forward pass, reading the KV cache the conversation
 already filled, with a calibrated probability for every option.
 
+![The normal model next to the plumbed model, on the same server](docs/demo.gif)
+
+*Qwen3.5-35B-A3B on one A100, real time. The same messages go to both sides. Left: the normal model with thinking on.
+Right: the plumbed model, which hands the routing decision to its plumb mid-reply.*
+
 **A plumb is a Jev model built into the LLM.** It answers the same kind of typed decision as a Jev-style decision
 model such as TypeSafe's Jev: pick one of these options, yes or no, or a score on a scale. The difference is that it
 is not a second model next to the LLM. It is a Jev decision head inside the model, sharing its weights and its KV
