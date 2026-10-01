@@ -173,6 +173,19 @@ EVAL_SETS = {
 LICENSE_NAMES = {"apache-2.0": "Apache 2.0", "mit": "MIT"}
 
 
+def _cells(bench: dict) -> dict:
+    """The 2x2 of a benchmark summary. With thinking, the model alone counts in its better prompt setup."""
+    thinking = [bench[k] for k in ("s2_think", "s2_think_tool") if k in bench]
+    return {
+        "model alone, thinking off": bench.get("s2_fast"),
+        "plumbed, thinking off": bench.get("s2_with_plumb_tool"),
+        "model alone, thinking on": max(thinking, key=lambda r: r["accuracy"])
+        if thinking
+        else None,
+        "plumbed, thinking on": bench.get("s2_with_plumb_think"),
+    }
+
+
 def _pct(x: float | None) -> str:
     return "–" if x is None else f"{x:.3f}"
 
@@ -214,12 +227,7 @@ def card(
         "tags: [plumber, plumb, jev, decision-making, calibration, vllm-plugin, lora]",
     ]
     if bench:
-        rows = [
-            ("plumbed", "s2_with_plumb_tool"),
-            ("base model, thinking off", "s2_fast"),
-            ("base model, thinking on", "s2_think"),
-            ("plumb alone", "s1"),
-        ]
+        cells = _cells(bench)
         meta += [
             "model-index:",
             f"- name: {name}",
@@ -228,9 +236,9 @@ def card(
             "    dataset: {type: plumber-heldout-decisions, name: Plumber held-out decisions (447)}",
             "    metrics:",
             *[
-                f"    - {{type: accuracy, name: Accuracy ({label}), value: {bench[k]['accuracy']:.3f}}}"
-                for label, k in rows
-                if k in bench
+                f"    - {{type: accuracy, name: Accuracy ({label}), value: {run['accuracy']:.3f}}}"
+                for label, run in cells.items()
+                if run
             ],
         ]
     meta.append("---")
@@ -250,34 +258,50 @@ def card(
     ]
 
     if bench:
-        b = {k: bench.get(k) or {} for k in ("s2_fast", "s2_think", "s1", "s2_with_plumb_tool")}
+        c = _cells(bench)
+        off_m, off_p = c["model alone, thinking off"], c["plumbed, thinking off"]
+        on_m, on_p = c["model alone, thinking on"], c["plumbed, thinking on"]
+
+        def cell(run):
+            return (
+                f"{_pct(run.get('accuracy'))} ({_secs(run.get('latency_p50_ms'))})" if run else "–"
+            )
+
+        def row(alone, plumbed):
+            """Both cells, the more accurate one in bold."""
+            a, p = cell(alone), cell(plumbed)
+            if alone and plumbed and plumbed["accuracy"] > alone["accuracy"]:
+                p = f"**{p}**"
+            elif alone and plumbed and alone["accuracy"] > plumbed["accuracy"]:
+                a = f"**{a}**"
+            return f"{a} | {p}"
+
+        def by(run, k):
+            return _pct(((run or {}).get("by_source") or {}).get(k))
+
         out += [
             "",
             "## Results",
             "",
-            "447 held-out decisions (task families and templates the plumb never trained on), measured on one vLLM",
-            "server with the plumb off and on. Each prompt states a decision: context, question, bulleted options.",
+            "447 held-out decisions (task families and templates the plumb never trained on), on one vLLM server. Each",
+            "cell is accuracy (latency p50 for one request). With thinking on, the model alone is scored in its better",
+            "prompt setup, so the plumb is compared with the model at its best.",
             "",
-            "| | Accuracy | Latency p50 |",
+            f"| | {base} alone | {name} |",
             "|---|---:|---:|",
-            f"| {base}, thinking off | {_pct(b['s2_fast'].get('accuracy'))} | {_secs(b['s2_fast'].get('latency_p50_ms'))} |",
-            f"| {base}, thinking on | {_pct(b['s2_think'].get('accuracy'))} | {_secs(b['s2_think'].get('latency_p50_ms'))} |",
-            f"| plumb alone (`mode: system1`) | {_pct(b['s1'].get('accuracy'))} | {_secs(b['s1'].get('latency_p50_ms'))} |",
-            f"| **{name}** | **{_pct(b['s2_with_plumb_tool'].get('accuracy'))}** | {_secs(b['s2_with_plumb_tool'].get('latency_p50_ms'))} |",
+            f"| Thinking off | {row(off_m, off_p)} |",
+            f"| Thinking on | {row(on_m, on_p)} |",
             "",
-            "| Eval set | Thinking off | Thinking on | Plumbed |",
-            "|---|---:|---:|---:|",
+            "| Eval set | Off: alone | Off: plumbed | On: alone | On: plumbed |",
+            "|---|---:|---:|---:|---:|",
             *[
-                f"| {label} | {_pct((b['s2_fast'].get('by_source') or {}).get(k))} | "
-                f"{_pct((b['s2_think'].get('by_source') or {}).get(k))} | "
-                f"{_pct((b['s2_with_plumb_tool'].get('by_source') or {}).get(k))} |"
+                f"| {label} | {by(off_m, k)} | {by(off_p, k)} | {by(on_m, k)} | {by(on_p, k)} |"
                 for k, label in EVAL_SETS.items()
             ],
             "",
-            "Latency is the full reply for one request on one A100 80 GB; the decision itself is the plumb-alone row.",
-            "\"Plumbed\" counts the final answer in the response's `plumb` field: the plumb's choice when its top",
-            "probability is at least 0.7, the model's own stated choice otherwise. With 447 decisions, one standard",
-            "error is about 2 points.",
+            "Latency is the full reply on one A100 80 GB. The plumbed model's answer is the final answer in the",
+            "response's `plumb` field: the plumb's choice when its top probability is at least 0.7, the model's own",
+            "stated choice otherwise. With 447 decisions, one standard error is about 2 points.",
         ]
 
     if dev:

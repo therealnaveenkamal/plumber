@@ -19,14 +19,14 @@ you need before uploading it anywhere.
 
 ## Models
 
-| Recipe | Model | Rows | Tokens per batch | Training | Serving memory | Plumbed | Base, thinking off / on |
-|---|---|---:|---:|---|---|---:|---|
-| `gemma-4-12b.sh` | Gemma 4 12B | 10k | 32k | 76 min | 0.70 | 0.826 | 0.736 / 0.718 |
-| `qwen3.5-35b-a3b.sh` | Qwen3.5-35B-A3B (MoE) | 10k | 8k | 37 min | 0.95, 16k context, 32 sequences | 0.810 | 0.720 / 0.787 |
-| `qwen3.5-4b.sh` | Qwen3.5-4B | 20k | 32k | 54 min | 0.70 | 0.801 | 0.667 / 0.720 |
-| `qwen3.5-9b.sh` | Qwen3.5-9B | 10k | 32k | 37 min | 0.70 | 0.779 | 0.696 / 0.772 |
-| `qwen3-1.7b.sh` | Qwen3-1.7B | 20k | 32k | 23 min | 0.70 | 0.658 | 0.570 / 0.642 |
-| `qwen3.5-27b.sh` | Qwen3.5-27B | 10k | 16k | 104 min | 0.92 | 0.839 | 0.732 / 0.823 |
+| Recipe | Model | Rows | Tokens per batch | Training | Serving memory | No thinking: alone → plumbed | Thinking: alone → plumbed |
+|---|---|---:|---:|---|---|---|---|
+| `qwen3.5-27b.sh` | Qwen3.5-27B | 10k | 16k | 104 min | 0.92 | 0.732 → 0.839 | 0.866 → 0.875 |
+| `qwen3.5-35b-a3b.sh` | Qwen3.5-35B-A3B (MoE) | 10k | 8k | 37 min | 0.95, 16k context, 32 sequences | 0.720 → 0.810 | 0.852 → 0.875 |
+| `gemma-4-12b.sh` | Gemma 4 12B | 10k | 32k | 76 min | 0.70 | 0.736 → 0.826 | 0.770 → 0.872 |
+| `qwen3.5-9b.sh` | Qwen3.5-9B | 10k | 32k | 37 min | 0.70 | 0.696 → 0.779 | 0.808 → 0.846 |
+| `qwen3.5-4b.sh` | Qwen3.5-4B | 20k | 32k | 54 min | 0.70 | 0.667 → 0.801 | 0.841 → 0.826 |
+| `qwen3-1.7b.sh` | Qwen3-1.7B | 20k | 32k | 23 min | 0.70 | 0.570 → 0.658 | 0.642 → 0.707 |
 
 "Serving memory" is the value passed to `--gpu-memory-utilization`. The big models need it high: Qwen3.5-35B-A3B's
 72 GB of weights leave about 5 GB on an 80 GB card, which is why it also runs with a shorter context and at most 32

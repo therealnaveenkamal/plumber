@@ -5,7 +5,9 @@
   s1        plumb mode "system1": one forward pass, calibrated probabilities
   s2_fast   "plumb": false, thinking off, output constrained to the option names (the model alone)
   s2_think  "plumb": false, thinking on, final "Answer: <option>" parsed (the model alone)
+  s2_think_tool  the same with an unrelated tool in the prompt (Qwen3.5 thinks much less when any tool is listed)
   s2_with_plumb_tool  the plumbed model as served: System 1 when confident, the model's judgement otherwise
+  s2_with_plumb_think  the same with thinking on (prompt and sampling as s2_think)
   cascade   s1 when its conformal set is one option, else s2_think (computed from the same rows)
 
 Reports accuracy, single-request latency (sequential subset), throughput under concurrency, generated tokens.
@@ -116,8 +118,24 @@ async def s1(c: httpx.AsyncClient, url: str, r: dict) -> dict:
     }
 
 
-async def s2(c: httpx.AsyncClient, url: str, r: dict, think: bool) -> dict:
-    """The model alone: vLLM's own handler ("plumb": false)."""
+# A tool the model has no reason to call. Qwen3.5 thinks far less when its prompt lists any tool, so this measures the
+# model alone with a tool-shaped prompt, matching the plumbed model's prompt (which carries plumb_decide).
+UNRELATED_TOOL = {
+    "type": "function",
+    "function": {
+        "name": "get_weather",
+        "description": "Current weather for a city",
+        "parameters": {
+            "type": "object",
+            "properties": {"city": {"type": "string"}},
+            "required": ["city"],
+        },
+    },
+}
+
+
+async def s2(c: httpx.AsyncClient, url: str, r: dict, think: bool, tool: bool = False) -> dict:
+    """The model alone: vLLM's own handler ("plumb": false); ``tool`` adds an unrelated tool it never calls."""
     names = [o["name"] for o in r["options"]]
     body = {
         "model": MODEL["name"],
@@ -125,6 +143,8 @@ async def s2(c: httpx.AsyncClient, url: str, r: dict, think: bool) -> dict:
         "chat_template_kwargs": {"enable_thinking": think},
         "plumb": False,
     }
+    if tool:
+        body |= {"tools": [UNRELATED_TOOL], "tool_choice": "none"}
     if think:
         body |= {"max_tokens": 4096, "temperature": 0.6, "top_p": 0.95}
     else:
@@ -153,8 +173,9 @@ async def s2(c: httpx.AsyncClient, url: str, r: dict, think: bool) -> dict:
 DELEGATE = "For the decision below, give a final line 'Answer: <option name>'."
 
 
-async def s2_delegate(c: httpx.AsyncClient, url: str, r: dict) -> dict:
-    """The plumbed model: the standard endpoint with the plumb on (System 1 when confident, the model otherwise)."""
+async def s2_delegate(c: httpx.AsyncClient, url: str, r: dict, think: bool = False) -> dict:
+    """The plumbed model: the standard endpoint with the plumb on (System 1 when confident, the model otherwise).
+    With ``think``, the same prompt and sampling as s2_think, so the two differ only by the plumb."""
     names = [o["name"] for o in r["options"]]
     body = {
         "model": MODEL["name"],
@@ -165,6 +186,14 @@ async def s2_delegate(c: httpx.AsyncClient, url: str, r: dict) -> dict:
         "max_tokens": 400,
         "chat_template_kwargs": {"enable_thinking": False},
     }
+    if think:
+        body |= {
+            "messages": [{"role": "user", "content": prompt(r, True)}],
+            "max_tokens": 4096,
+            "temperature": 0.6,
+            "top_p": 0.95,
+            "chat_template_kwargs": {"enable_thinking": True},
+        }
     t = time.perf_counter()
     resp = (await c.post(f"{url}/v1/chat/completions", json=body)).json()
     lat = time.perf_counter() - t
@@ -236,7 +265,9 @@ def main():
         "s1": s1,
         "s2_fast": lambda c, u, r: s2(c, u, r, False),
         "s2_think": lambda c, u, r: s2(c, u, r, True),
+        "s2_think_tool": lambda c, u, r: s2(c, u, r, True, tool=True),
         "s2_with_plumb_tool": s2_delegate,
+        "s2_with_plumb_think": lambda c, u, r: s2_delegate(c, u, r, True),
     }
     results, summary = {}, {}
     wanted = list(methods) if a.methods == "all" else a.methods.split(",")

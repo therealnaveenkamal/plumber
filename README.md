@@ -23,8 +23,9 @@ already filled, with a calibrated probability for every option.
 
 ![The normal model next to the plumbed model, on the same server](docs/demo.gif)
 
-*Qwen3.5-35B-A3B on one A100, real time, thinking on in both panes. The same messages go to both sides. Left: the
-normal model. Right: the same model with its plumb, which hands the decision to System 1 mid-reply.*
+*Qwen3.5-35B-A3B on one A100, real time, thinking on in both panes. Left: the normal model. Right: the same model
+with its plumb, which hands the decision to System 1 mid-reply. Part of the right pane's speed comes from its prompt
+listing a tool, which shortens thinking by itself; the Results table compares the two with matched prompts.*
 
 **A plumb is a Jev model built into the LLM.** It answers the same kind of typed decision as a Jev-style decision
 model such as TypeSafe's Jev: pick one of these options, yes or no, or a score on a scale. The difference is that it
@@ -52,24 +53,28 @@ The [guide](docs/guide.md) covers the training data format, the request options 
 
 ## Results
 
-Each model against itself on the same vLLM server, with the plumb off and on, over 447 held-out decisions (task
-families and templates no model trained on). Each prompt states a decision: context, question, bulleted options.
+The same model alone and with its plumb, on one vLLM server, over 447 held-out decisions (task families and
+templates no model trained on). Each prompt states a decision: context, question, bulleted options.
 
+| Model                 | No thinking: alone → plumbed | Thinking: alone → plumbed | Thinking latency p50: alone → plumbed |
+| --------------------- | ---------------------------- | ------------------------- | ------------------------------------- |
+| Qwen3.5-27B           | 0.732 → **0.839**            | 0.866 → **0.875**         | 26.6 s → 17.1 s (1.6× faster)          |
+| Qwen3.5-35B-A3B (MoE) | 0.720 → **0.810**            | 0.852 → **0.875**         | 6.8 s → 2.8 s (2.4× faster)            |
+| Gemma 4 12B           | 0.736 → **0.826**            | 0.770 → **0.872**         | 24.1 s → 5.0 s (4.8× faster)           |
+| Qwen3.5-9B            | 0.696 → **0.779**            | 0.808 → **0.846**         | 28.0 s → 5.7 s (4.9× faster)           |
+| Qwen3.5-4B            | 0.667 → **0.801**            | **0.841** → 0.826         | 12.0 s → 3.8 s (3.1× faster)           |
+| Qwen3-1.7B            | 0.570 → **0.658**            | 0.642 → **0.707**         | 3.9 s → 3.1 s (1.2× faster)            |
 
-| Model                 | Base, thinking off | Base, thinking on | **Plumbed** | Latency p50, thinking → plumbed |
-| --------------------- | ------------------ | ----------------- | ----------- | ------------------------------- |
-| Qwen3.5-27B           | 0.732              | 0.823             | **0.839**   | 69.7 s → 0.69 s                 |
-| Gemma 4 12B           | 0.736              | 0.718             | **0.826**   | 34.0 s → 2.2 s                  |
-| Qwen3.5-35B-A3B (MoE) | 0.720              | 0.787             | **0.810**   | 19.8 s → 0.78 s                 |
-| Qwen3.5-4B            | 0.667              | 0.720             | **0.801**   | 29.2 s → 0.24 s                 |
-| Qwen3.5-9B            | 0.696              | 0.772             | **0.779**   | 32.6 s → 1.6 s                  |
-| Qwen3-1.7B            | 0.570              | 0.642             | **0.658**   | 3.9 s → 0.05 s                  |
+Without thinking, the plumb adds 8 to 13 points on every model. With thinking, the plumbed model is at least as
+accurate on five of six models (Qwen3.5-4B is within noise) and answers 1.2 to 4.9 times faster, because it thinks
+30 to 75% less: it hands the decision to the plumb instead of reasoning it all out. It also always answers, where
+the model alone runs out of tokens or gives no clear answer on 5 to 15% of decisions when thinking. With 447
+decisions, one standard error is about 2 points.
 
-
-The plumbed model beats the base model without thinking by 8 to 13 points on every model. It beats thinking by 8 to
-11 points on Gemma 4 12B and Qwen3.5-4B, and matches it on the other four (the gap is within one standard error),
-at 15 to 120 times lower latency. The decision itself takes 20 to 100 ms; the rest of the latency is the model
-writing its reply. Settings for each run are in [recipes/](recipes/).
+With thinking on, the model alone is scored in its better setup. These models think much less when their prompt
+lists a tool (the plumbed model's prompt always lists `plumb_decide`), which is often but not always more accurate,
+so each model alone gets whichever prompt, with or without a tool, scores higher. Settings for each run are in
+[recipes/](recipes/).
 
 ## How it works
 

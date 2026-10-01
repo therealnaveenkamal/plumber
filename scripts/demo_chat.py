@@ -93,6 +93,22 @@ def decision_box(c: Colors, ev: dict) -> None:
     print("  └" + "─" * 64 + c.reset)
 
 
+# Listed (never called) when --tool-prompt is on: Qwen3.5 thinks much less whenever its prompt lists a tool, and the
+# plumbed model's prompt always lists plumb_decide, so this keeps the two sides' prompts alike.
+UNRELATED_TOOL = {
+    "type": "function",
+    "function": {
+        "name": "get_weather",
+        "description": "Current weather for a city",
+        "parameters": {
+            "type": "object",
+            "properties": {"city": {"type": "string"}},
+            "required": ["city"],
+        },
+    },
+}
+
+
 def report(path: str | None, **row) -> None:
     """Append one JSON line (a turn's start or end) for scripts/demo/status.py."""
     if path:
@@ -112,6 +128,8 @@ def turn(
         "chat_template_kwargs": {"enable_thinking": opts["think"]},
         "plumb": {"trust": opts["trust"]} if opts["plumb"] else False,
     }
+    if opts.get("tool_prompt") and not opts["plumb"]:
+        body |= {"tools": [UNRELATED_TOOL], "tool_choice": "none"}
     new, content, n_dec, t0, thinking, finish = [], "", 0, time.time(), False, None
     opts["turn"] = opts.get("turn", 0) + 1
     report(opts.get("report"), turn=opts["turn"], start=t0)
@@ -222,6 +240,11 @@ def main():
     ap.add_argument(
         "--report", default=None, help="append per-turn timings to this file (JSON lines)"
     )
+    ap.add_argument(
+        "--tool-prompt",
+        action="store_true",
+        help="with --no-plumb: list an unrelated tool, so the prompt is shaped like the plumbed model's",
+    )
     a = ap.parse_args()
     c = Colors(sys.stdout.isatty() and not a.plain)
     opts = {
@@ -230,6 +253,7 @@ def main():
         "max_tokens": a.max_tokens,
         "plumb": not a.no_plumb,
         "report": a.report,
+        "tool_prompt": a.tool_prompt,
     }
     system, history = a.system, []
     client = httpx.Client(timeout=600)

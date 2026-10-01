@@ -33,6 +33,9 @@ def main():
     ap.add_argument("--hardware", default="one A100 80 GB")
     ap.add_argument("--private", action="store_true")
     ap.add_argument("--dry-run", action="store_true", help="write the card only")
+    ap.add_argument(
+        "--card-only", action="store_true", help="upload only the model card (README.md)"
+    )
     a = ap.parse_args()
 
     from huggingface_hub import CommitOperationAdd, HfApi, hf_hub_download
@@ -62,11 +65,15 @@ def main():
         return
 
     files = sorted(f for f in os.listdir(a.model) if os.path.isfile(os.path.join(a.model, f)))
+    if a.card_only:
+        files = ["README.md"]
     ops = [CommitOperationAdd(f, os.path.realpath(os.path.join(a.model, f))) for f in files]
     api.create_repo(a.repo, private=a.private, exist_ok=True)
     total = sum(os.path.getsize(os.path.realpath(os.path.join(a.model, f))) for f in files) / 1e9
     print(f"uploading {len(files)} files ({total:.1f} GB) to {a.repo}")
-    api.create_commit(a.repo, ops, commit_message=f"Plumbed {base}")
+    api.create_commit(
+        a.repo, ops, commit_message="Update model card" if a.card_only else f"Plumbed {base}"
+    )
     print(f"done: https://huggingface.co/{a.repo}")
 
 
