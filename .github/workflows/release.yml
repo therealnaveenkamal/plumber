@@ -1,0 +1,107 @@
+# Pushing a version tag (v0.2.1, v0.3.0rc1, ...) runs CI, checks that the tag matches the version everywhere it is
+# written, builds the package, publishes it to PyPI with trusted publishing (no token), and creates the GitHub
+# release from the tag's section of CHANGELOG.md. CONTRIBUTING.md has the release steps.
+name: release
+on:
+  push:
+    tags: ["v*"]
+permissions:
+  contents: read
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  ci:
+    uses: ./.github/workflows/ci.yml
+
+  build:
+    needs: ci
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - name: Check the tag matches the version
+        id: version
+        # A PyPI upload can't be undone, so a mismatch stops the release here, before anything is published.
+        run: |
+          python - <<'EOF'
+          import os, pathlib, re, tomllib
+          tag = os.environ["GITHUB_REF_NAME"]
+          read = lambda p: pathlib.Path(p).read_text()
+          found = {
+              "pyproject.toml": tomllib.loads(read("pyproject.toml"))["project"]["version"],
+              "plumbify/__init__.py": re.search(r'__version__ = "([^"]+)"', read("plumbify/__init__.py")).group(1),
+              "CITATION.cff": re.search(r"^version: (\S+)", read("CITATION.cff"), re.M).group(1),
+          }
+          bad = {path: v for path, v in found.items() if f"v{v}" != tag}
+          if bad:
+              raise SystemExit(f"tag {tag} does not match {bad}")
+          version = tag[1:]
+          if not re.search(rf"^## \[{re.escape(version)}\]", read("CHANGELOG.md"), re.M):
+              raise SystemExit(f"CHANGELOG.md has no '## [{version}]' section")
+          with open(os.environ["GITHUB_OUTPUT"], "a") as f:
+              f.write(f"version={version}\n")
+          EOF
+      - run: pip install build twine
+      - run: python -m build
+      - run: twine check --strict dist/*
+      - uses: actions/upload-artifact@v4
+        with: { name: dist, path: dist/, if-no-files-found: error }
+
+  pypi:
+    needs: build
+    runs-on: ubuntu-latest
+    # Must match the environment name in the trusted publisher settings on PyPI.
+    environment:
+      name: pypi
+      url: https://pypi.org/project/plumbify/${{ needs.build.outputs.version }}/
+    permissions:
+      id-token: write # trusted publishing: PyPI accepts this workflow's OIDC token instead of an API token
+    steps:
+      - uses: actions/download-artifact@v4
+        with: { name: dist, path: dist/ }
+      - uses: pypa/gh-action-pypi-publish@release/v1
+
+  github-release:
+    needs: [build, pypi]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      VERSION: ${{ needs.build.outputs.version }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with: { name: dist, path: dist/ }
+      - name: Release notes from CHANGELOG.md
+        # The changelog is hard-wrapped; GitHub renders single newlines in release notes as line breaks, so join
+        # wrapped lines back into their paragraph or list item.
+        run: |
+          python - <<'EOF'
+          import os, pathlib, re
+          v = os.environ["VERSION"]
+          text = pathlib.Path("CHANGELOG.md").read_text()
+          section = re.search(rf"^## \[{re.escape(v)}\][^\n]*\n(.*?)(?=^## \[|\Z)", text, re.S | re.M).group(1)
+          out, fence = [], False
+          for line in section.strip().split("\n"):
+              if line.startswith("```"):
+                  fence = not fence
+              elif (not fence and line and out and out[-1] and not out[-1].startswith(("#", "```"))
+                    and not line.startswith(("-", "#", "|"))):
+                  out[-1] += " " + line.strip()
+                  continue
+              out.append(line)
+          out += ["", "```bash", f'pip install "plumbify[vllm]=={v}"', "```", "",
+                  "Full changelog: [CHANGELOG.md](https://github.com/therealnaveenkamal/plumbify/blob/main/CHANGELOG.md)"]
+          pathlib.Path("notes.md").write_text("\n".join(out) + "\n")
+          EOF
+      - name: Create the GitHub release
+        run: |
+          flags=()
+          [[ "$VERSION" =~ [a-z] ]] && flags+=(--prerelease)
+          gh release create "$GITHUB_REF_NAME" dist/* --verify-tag --title "Plumbify $VERSION" \
+            --notes-file notes.md "${flags[@]}"

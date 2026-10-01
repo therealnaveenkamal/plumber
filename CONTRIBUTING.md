@@ -52,7 +52,29 @@ the README changes, update it in the same pull request.
 
 ## Commits and pull requests
 
-- Start the commit subject with the area: `core:`, `training:`, `plugin:`, `recipes:`, `scripts:`, `demo:`,
-  `results:`, `docs:`, `ci:`.
+- Start the commit subject with the area: `core:`, `training:`, `plugin:`, `recipes:`, `scripts:`, `results:`,
+  `docs:`, `ci:`, `release:`.
 - Keep one logical change per pull request, and say how you tested it.
 - Add a line under "Unreleased" in [CHANGELOG.md](CHANGELOG.md) for anything a user would notice.
+
+## Releasing
+
+Pushing a version tag publishes the release. `.github/workflows/release.yml` runs CI, checks that the tag matches the
+version in every file below and that the changelog has a section for it, builds the package, publishes it to PyPI
+through trusted publishing (no API token), and creates the GitHub release from the changelog section.
+
+1. In [CHANGELOG.md](CHANGELOG.md), move the entries under "Unreleased" to a new `## [X.Y.Z] - YYYY-MM-DD` section.
+2. Set the version to `X.Y.Z` in `pyproject.toml`, `plumbify/__init__.py` and `CITATION.cff` (also update
+   `date-released` there).
+3. Commit to `main` as `release: X.Y.Z`, then tag and push the tag:
+
+   ```bash
+   git tag -a vX.Y.Z -m "Plumbify X.Y.Z"
+   git push origin vX.Y.Z
+   ```
+
+4. Follow the run in the repository's Actions tab. A tag such as `v0.3.0rc1` is published as a pre-release.
+
+If the version check fails, nothing has been published: delete the tag (`git push origin :refs/tags/vX.Y.Z` and
+`git tag -d vX.Y.Z`), fix the files, and tag again. A version that reached PyPI can't be replaced; release the fix as
+the next patch version.
