@@ -44,8 +44,9 @@ never changed. [recipes/](../recipes/) has tested settings for each model we hav
 vllm serve plumbed-qwen3.5-9b
 ```
 
-No flags or environment variables are needed. A plumbed model uploaded to the Hugging Face Hub (packaged with
-`--copy`) can be served by name: `vllm serve your-org/plumbed-qwen3.5-9b`.
+No flags or environment variables are needed. To publish a plumbed model with a model card (benchmark numbers
+included when you pass `--bench`), run `python scripts/push_to_hub.py plumbed-qwen3.5-9b your-org/Qwen3.5-9B-plumb`.
+Anyone with plumber installed can then `vllm serve your-org/Qwen3.5-9B-plumb`.
 
 ## API
 

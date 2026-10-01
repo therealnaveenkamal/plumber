@@ -71,17 +71,7 @@ def main(argv=None):
     metrics_path = os.path.join(work, "metrics.json")
     metrics = json.load(open(metrics_path)) if os.path.exists(metrics_path) else None
     print(f"[plumbify] 2/2 package -> {a.out}", flush=True)
-    package(
-        os.path.join(work, "final"),
-        a.out,
-        a.base,
-        copy=a.copy,
-        metrics={
-            k: metrics[k] for k in ("dev_calibrated", "temperature", "conformal") if k in metrics
-        }
-        if metrics
-        else None,
-    )
+    package(os.path.join(work, "final"), a.out, a.base, copy=a.copy, metrics=metrics)
     print(f"[plumbify] done. Serve it with:\n  vllm serve {a.out}", flush=True)
 
 

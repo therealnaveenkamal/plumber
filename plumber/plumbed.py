@@ -121,38 +121,246 @@ def package(
         p = os.path.join(plumb_dir, name)
         if os.path.exists(p):
             shutil.copyfile(p, os.path.join(out, name))
-    with open(os.path.join(out, "README.md"), "w") as f:
-        f.write(card(base, arch, spec, metrics))
+    write_card(out, dev=metrics)
     return out
 
 
-def card(base: str, arch: str, spec, metrics: dict | None) -> str:
+def card_inputs(out: str) -> dict:
+    """What a plumbed directory says about itself: base, architecture, spec, adapter config, head size."""
+    from safetensors import safe_open
+
+    from .artifact import read_spec
+
+    cfg = json.load(open(os.path.join(out, "config.json")))
+    spec = read_spec(out)
+    adapter_cfg = os.path.join(out, "suffix_adapter.json")
+    with safe_open(os.path.join(out, "head.safetensors"), "pt") as f:
+        names = f.keys()
+        head_params = sum(_numel(f.get_slice(k).get_shape()) for k in names if k != "temperature")
+    return {
+        "base": cfg["plumb"]["base_model"],
+        "arch": cfg["plumb"]["base_architecture"],
+        "spec": spec,
+        "adapter": json.load(open(adapter_cfg)) if os.path.exists(adapter_cfg) else None,
+        "head_params": head_params,
+    }
+
+
+def _numel(shape) -> int:
+    n = 1
+    for x in shape:
+        n *= x
+    return n
+
+
+def write_card(out: str, **kw) -> str:
+    """Write README.md (the model card) into a plumbed model directory; ``kw`` goes to ``card``."""
+    i = card_inputs(out)
+    text = card(i.pop("base"), i.pop("arch"), i.pop("spec"), **{**i, **kw})
+    with open(os.path.join(out, "README.md"), "w") as f:
+        f.write(text)
+    return text
+
+
+REPO_URL = "https://github.com/therealnaveenkamal/plumber"
+EVAL_SETS = {
+    "decisionbench_new": "DecisionBench, held-out task families (150)",
+    "kev_hard": "Hard-skill templates, held out (105)",
+    "general_new": "General decisions, unseen templates (192)",
+}
+
+
+LICENSE_NAMES = {"apache-2.0": "Apache 2.0", "mit": "MIT"}
+
+
+def _pct(x: float | None) -> str:
+    return "–" if x is None else f"{x:.3f}"
+
+
+def _secs(ms: float | None) -> str:
+    if ms is None:
+        return "–"
+    return f"{ms / 1000:.1f} s" if ms >= 1000 else f"{ms:.0f} ms"
+
+
+def card(
+    base: str,
+    arch: str,
+    spec,
+    *,
+    repo: str | None = None,
+    adapter: dict | None = None,
+    head_params: int | None = None,
+    dev: dict | None = None,
+    bench: dict | None = None,
+    train: dict | None = None,
+    license_name: str = "apache-2.0",
+    license_link: str | None = None,
+) -> str:
+    """The model card (README.md) of a plumbed model. ``bench`` is a scripts/bench_s1_vs_s2.py summary, ``dev`` the
+    training run's metrics.json, ``train`` free-form facts about the run (rows, minutes, hardware)."""
+    name = (repo or base).split("/")[-1]
+    ref = repo or "path/to/" + name
     conf = spec.calibration.conformal
-    lines = [
-        f"# Plumbed {base}",
+    train = train or {}
+    meta = [
+        "---",
+        f"license: {license_name}",
+        *([f"license_link: {license_link}"] if license_link else []),
+        f"base_model: {base}",
+        "base_model_relation: adapter",
+        "library_name: vllm",
+        "pipeline_tag: text-generation",
+        "tags: [plumber, plumb, jev, decision-making, calibration, vllm-plugin, lora]",
+    ]
+    if bench:
+        rows = [
+            ("plumbed", "s2_with_plumb_tool"),
+            ("base model, thinking off", "s2_fast"),
+            ("base model, thinking on", "s2_think"),
+            ("plumb alone", "s1"),
+        ]
+        meta += [
+            "model-index:",
+            f"- name: {name}",
+            "  results:",
+            "  - task: {type: text-classification, name: Typed decisions}",
+            "    dataset: {type: plumber-heldout-decisions, name: Plumber held-out decisions (447)}",
+            "    metrics:",
+            *[
+                f"    - {{type: accuracy, name: Accuracy ({label}), value: {bench[k]['accuracy']:.3f}}}"
+                for label, k in rows
+                if k in bench
+            ],
+        ]
+    meta.append("---")
+
+    out = [
+        *meta,
         "",
-        f"`{base}` with a **plumb**: a System 1 decision module that answers routine judgements (routing, "
-        "classification, priority, yes/no, ratings) in one forward pass, with calibrated probabilities and a "
-        "conformal set, reading the model's own KV cache. The base weights are untouched: generation is exactly the "
-        "base model's.",
+        f"# {name}",
         "",
-        "## Serve",
+        f"[{base}](https://huggingface.co/{base}) with a **plumb**: a decision head built into the model. It answers",
+        "typed decisions (pick one of these options, yes or no, a score on a scale) in one forward pass, with a",
+        "calibrated probability for every option, reading the KV cache the conversation already filled. It is a",
+        "Jev-style decision model inside the LLM instead of next to it. The base weights are unchanged, so the model",
+        f"chats, reasons and calls tools exactly like `{base}`.",
+        "",
+        f"Made with [Plumber]({REPO_URL}) and served by vLLM through the Plumber plugin.",
+    ]
+
+    if bench:
+        b = {k: bench.get(k) or {} for k in ("s2_fast", "s2_think", "s1", "s2_with_plumb_tool")}
+        out += [
+            "",
+            "## Results",
+            "",
+            "447 held-out decisions (task families and templates the plumb never trained on), measured on one vLLM",
+            "server with the plumb off and on. Each prompt states a decision: context, question, bulleted options.",
+            "",
+            "| | Accuracy | Latency p50 |",
+            "|---|---:|---:|",
+            f"| {base}, thinking off | {_pct(b['s2_fast'].get('accuracy'))} | {_secs(b['s2_fast'].get('latency_p50_ms'))} |",
+            f"| {base}, thinking on | {_pct(b['s2_think'].get('accuracy'))} | {_secs(b['s2_think'].get('latency_p50_ms'))} |",
+            f"| plumb alone (`mode: system1`) | {_pct(b['s1'].get('accuracy'))} | {_secs(b['s1'].get('latency_p50_ms'))} |",
+            f"| **{name}** | **{_pct(b['s2_with_plumb_tool'].get('accuracy'))}** | {_secs(b['s2_with_plumb_tool'].get('latency_p50_ms'))} |",
+            "",
+            "| Eval set | Thinking off | Thinking on | Plumbed |",
+            "|---|---:|---:|---:|",
+            *[
+                f"| {label} | {_pct((b['s2_fast'].get('by_source') or {}).get(k))} | "
+                f"{_pct((b['s2_think'].get('by_source') or {}).get(k))} | "
+                f"{_pct((b['s2_with_plumb_tool'].get('by_source') or {}).get(k))} |"
+                for k, label in EVAL_SETS.items()
+            ],
+            "",
+            "Latency is the full reply for one request on one A100 80 GB; the decision itself is the plumb-alone row.",
+            "\"Plumbed\" counts the final answer in the response's `plumb` field: the plumb's choice when its top",
+            "probability is at least 0.7, the model's own stated choice otherwise. With 447 decisions, one standard",
+            "error is about 2 points.",
+        ]
+
+    if dev:
+        d, c = dev.get("dev_calibrated") or {}, dev.get("conformal_dev") or {}
+        out += [
+            "",
+            "On the 2,549-row development set after calibration: accuracy "
+            f"{_pct(d.get('accuracy'))}, expected calibration error {_pct(d.get('ece'))}, conformal sets cover the right "
+            f"option {100 * c.get('coverage', 0):.0f}% of the time and hold a single option for "
+            f"{100 * c.get('singleton_rate', 0):.0f}% of decisions.",
+        ]
+
+    out += [
+        "",
+        "## Use",
         "",
         "```bash",
-        'pip install "plumber[vllm] @ git+https://github.com/therealnaveenkamal/plumber"',
-        "vllm serve <this directory>",
+        f'pip install "plumber[vllm] @ git+{REPO_URL}"',
+        f"vllm serve {ref}",
         "```",
         "",
-        "`/v1/chat/completions` then routes routine decisions to System 1 (see the `plumb` field of each response).",
+        "```bash",
+        "curl -s localhost:8000/v1/chat/completions -H 'content-type: application/json' -d '{",
+        f'  "model": "{ref}",',
+        '  "messages": [{"role": "user", "content": "Ticket: I was charged twice.\\n\\nWhich team should handle this?\\n- billing\\n- technical\\n- sales"}]',
+        "}' | jq .plumb.answer",
+        "```",
         "",
-        "## What is inside",
+        "Decisions stated in a message go to the plumb before the model replies; the model can also hand decisions to",
+        "it mid-conversation through a `plumb_decide` tool, answered from the KV cache. Each response carries a `plumb`",
+        'field with the probabilities, a conformal set and the final answer. `"plumb": false` in a request serves it',
+        f"with the base model alone. Request options and response fields are in the [guide]({REPO_URL}/blob/main/docs/guide.md).",
         "",
-        f"- base architecture `{arch}`, served as `Plumb{arch}`",
-        f"- decision head reading layers {spec.taps} (−1 = final output)",
-        f"- suffix-only LoRA: {'yes' if spec.has_adapter else 'no (head only)'}",
-        f"- temperature {spec.calibration.temperature:.3f}"
-        + (f"; conformal alpha {conf.alpha} (qhat {conf.qhat:.3f}, n={conf.n})" if conf else ""),
+        "## What is in this repository",
+        "",
+        f"- The weights of [{base}](https://huggingface.co/{base}), unchanged.",
+        f"- `config.json` with the architecture `{PLUMB_PREFIX}{arch}`, which tells vLLM and the plugin to attach the plumb.",
+        f"- `head.safetensors`: the decision head{f' ({head_params / 1e6:.1f}M parameters)' if head_params else ''}. It reads "
+        f"the model's hidden states at layers {', '.join(str(t) for t in spec.taps if t != -1)} and the final output.",
     ]
-    if metrics:
-        lines += ["", "## Dev metrics", "", "```json", json.dumps(metrics, indent=1)[:2000], "```"]
-    return "\n".join(lines) + "\n"
+    if spec.has_adapter:
+        r = (adapter or {}).get("r", "")
+        targets = ", ".join((adapter or {}).get("target_modules", []))
+        out.append(
+            f"- `suffix_adapter.*`: a LoRA (rank {r}) on {targets or 'the attention and MLP projections'}, active only "
+            "while the model reads a decision. It is never merged."
+        )
+    out += [
+        f"- `plumb.json`: taps, head shape and calibration (temperature {spec.calibration.temperature:.3f}"
+        + (f", conformal threshold {conf.qhat:.3f} at alpha {conf.alpha}" if conf else "")
+        + ").",
+        "",
+        "## Training",
+        "",
+        f"`plumber plumbify` on {train.get('rows', 'about 10k')} decision rows drawn from about 200 decision families",
+        "(support, finance, coding, safety, medicine, law, engineering) plus solver-labelled hard-skill rows, one epoch,",
+        f"{train.get('hardware', 'one A100 80 GB')}"
+        + (f", {train['minutes']} minutes" if train.get("minutes") else "")
+        + ". The base model is frozen: only the decision head and the suffix adapter are trained, then the head's",
+        "temperature and a conformal threshold are fitted on a held-out development set.",
+        "",
+        "## Limitations",
+        "",
+        "- Needs vLLM 0.30.0 with the Plumber plugin, on one GPU (no tensor or pipeline parallelism).",
+        "- The results above are for decisions stated in the prompt. Decisions the model hands off mid-generation use the",
+        "  same head but see the whole conversation as context, which training did not include.",
+        "- The training decisions are in English. The plumb chooses among the options it is given; it is not a",
+        "  safety classifier and does not check that the options make sense.",
+        "",
+        "## License",
+        "",
+        f"{LICENSE_NAMES.get(license_name, license_name)}, inherited from [{base}](https://huggingface.co/{base})"
+        + (f" ([terms]({license_link}))." if license_link else "."),
+        "",
+        "## Citation",
+        "",
+        "```bibtex",
+        "@misc{plumber2026,",
+        "  title  = {Plumber: a System 1 decision branch for open language models},",
+        "  author = {Kamalakannan, Naveenraj},",
+        "  year   = {2026},",
+        f"  url    = {{{REPO_URL}}}",
+        "}",
+        "```",
+    ]
+    return "\n".join(out) + "\n"
