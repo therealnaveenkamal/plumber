@@ -15,6 +15,7 @@ from __future__ import annotations
 import argparse
 import contextlib
 import json
+import shutil
 import sys
 import time
 
@@ -109,6 +110,12 @@ UNRELATED_TOOL = {
 }
 
 
+# Thinking markers as vLLM's own handler returns them with special tokens kept: Qwen-style and Gemma-style.
+THINK_OPEN = ("<think>", "<|channel>thought")
+THINK_CLOSE = ("</think>", "<channel|>")
+HOLD = max(map(len, THINK_OPEN + THINK_CLOSE))
+
+
 def report(path: str | None, **row) -> None:
     """Append one JSON line (a turn's start or end) for scripts/demo/status.py."""
     if path:
@@ -133,8 +140,11 @@ def turn(
     new, content, n_dec, t0, thinking, finish = [], "", 0, time.time(), False, None
     opts["turn"] = opts.get("turn", 0) + 1
     report(opts.get("report"), turn=opts["turn"], start=t0)
-    # Without the plumb, vLLM's own handler returns the model's thinking inline, ending at </think>
+    # Without the plumb, vLLM's own handler returns the model's thinking inline. Keep special tokens so the end of
+    # thinking is visible for every model (Gemma's markers are special tokens, Qwen's are not).
     inline_think, pending = opts["think"] and not opts["plumb"], ""
+    if inline_think:
+        body["skip_special_tokens"] = False
     bold = Bold(c)
     sys.stdout.write(f"{c.bold}model:{c.reset} ")
     sys.stdout.flush()
@@ -189,19 +199,22 @@ def turn(
             text = delta.get("content") or ""
             if text and inline_think:
                 pending += text
-                if "</think>" not in pending:
+                for m in THINK_OPEN:
+                    pending = pending.replace(m, "")
+                close = next((m for m in THINK_CLOSE if m in pending), None)
+                if close is None:
                     if not thinking:
                         sys.stdout.write(f"{c.dim}(thinking) ")
                         thinking = True
-                    keep = len(pending) - len("</think>")
+                    keep = len(pending) - HOLD
                     if keep > 0:
-                        sys.stdout.write(f"{c.dim}{pending[:keep].replace('<think>', '')}{c.reset}")
+                        sys.stdout.write(f"{c.dim}{pending[:keep]}{c.reset}")
                         pending = pending[keep:]
                     text = ""
                 else:
-                    before, _, text = pending.partition("</think>")
-                    sys.stdout.write(f"{c.dim}{before}{c.reset}")
-                    inline_think, text = False, text.lstrip("\n")
+                    before, _, text = pending.partition(close)
+                    sys.stdout.write(f"{c.dim}{before.rstrip()}{c.reset}")
+                    inline_think, pending, text = False, "", text.lstrip("\n")
             if text:
                 if thinking:
                     sys.stdout.write(f"{c.reset}\n")
@@ -210,6 +223,8 @@ def turn(
                 sys.stdout.write(bold(text))
             sys.stdout.flush()
             finish = choice.get("finish_reason") or finish
+    if pending:  # the stream ended inside thinking (out of tokens)
+        sys.stdout.write(f"{c.dim}{pending}{c.reset}")
     new.append({"role": "assistant", "content": content.strip()})
     took = time.time() - t0
     report(opts.get("report"), turn=opts["turn"], seconds=round(took, 2), decisions=n_dec)
@@ -277,7 +292,12 @@ def main():
             break
         if not user:
             continue
-        user = user.replace("\\n", "\n")
+        if "\\n" in user:  # typed \n means a new line: show the message as it is sent
+            user = user.replace("\\n", "\n")
+            lines = -(
+                -(len("you: ") + len(user) + user.count("\n")) // shutil.get_terminal_size().columns
+            )
+            print(f"\033[{lines}F\033[J{c.bold}you:{c.reset} {user}")
         if user.startswith("/"):
             cmd, _, arg = user.partition(" ")
             if cmd in ("/quit", "/exit"):

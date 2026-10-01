@@ -23,9 +23,11 @@ already filled, with a calibrated probability for every option.
 
 ![The normal model next to the plumbed model, on the same server](docs/demo.gif)
 
-*Qwen3.5-35B-A3B on one A100, real time, thinking on in both panes. Left: the normal model. Right: the same model
-with its plumb, which hands the decision to System 1 mid-reply. Part of the right pane's speed comes from its prompt
-listing a tool, which shortens thinking by itself; the Results table compares the two with matched prompts.*
+*Gemma 4 12B, one server, real time. Thinking is on in both panes and both prompts list a tool, so the two think
+under the same conditions. Turn 1 is ordinary chat; the plumbed model is a little slower there, because it spends a
+few lines of thinking on whether it needs its decision module. Turn 2 states a decision, a quiz item from the
+benchmark. The normal model works it out in its thinking. The plumbed model gets the answer from its plumb in 68 ms
+and writes the reply around it. That is 3× faster, the typical per-decision speedup in the benchmark.*
 
 **A plumb is a Jev model built into the LLM.** It answers the same kind of typed decision as a Jev-style decision
 model such as TypeSafe's Jev: pick one of these options, yes or no, or a score on a scale. The difference is that it

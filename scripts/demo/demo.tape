@@ -19,13 +19,13 @@ Sleep 3s
 Show
 
 Sleep 1.5s
-Type "Hey, I'm on call tonight for the payments service. Can you help me make quick calls if something breaks?"
+Type "I'm grading a maths quiz tonight. Can you help me check the answers?"
 Sleep 500ms
 Enter
 Wait+Screen@90s /NORMAL MODEL\s+\d+\.\d s\s+WITH PLUMB\s+\d+\.\d s/
 Sleep 2s
 
-Type "Alert just fired: p99 latency on checkout went from 180 ms to 2.4 s right after the 21:05 deploy, error rate is 1.8%, database and CPU look normal. What should I do? One line, please."
+Type `Posts are placed every 8 metres along a straight 288-metre fence, with a post at both ends. How many posts are needed? A student wrote 37. What's the correct answer?\n- 37 posts\n- 38 posts\n- 36 posts\n- 2,304 posts`
 Sleep 500ms
 Enter
 Wait+Screen@120s /faster with the plumb/
