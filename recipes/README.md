@@ -26,11 +26,11 @@ you need before uploading it anywhere.
 | `qwen3.5-4b.sh` | Qwen3.5-4B | 20k | 32k | 54 min | 0.70 | 0.801 | 0.667 / 0.720 |
 | `qwen3.5-9b.sh` | Qwen3.5-9B | 10k | 32k | 37 min | 0.70 | 0.779 | 0.696 / 0.772 |
 | `qwen3-1.7b.sh` | Qwen3-1.7B | 20k | 32k | 23 min | 0.70 | 0.658 | 0.570 / 0.642 |
-| `qwen3.5-27b.sh` | Qwen3.5-27B | 10k | 16k | about 1 h 45 min | 0.92 | – | – |
+| `qwen3.5-27b.sh` | Qwen3.5-27B | 10k | 16k | 104 min | 0.92 | 0.839 | 0.732 / 0.823 |
 
 "Serving memory" is the value passed to `--gpu-memory-utilization`. The big models need it high: Qwen3.5-35B-A3B's
 72 GB of weights leave about 5 GB on an 80 GB card, which is why it also runs with a shorter context and at most 32
-concurrent sequences. Qwen3.5-27B's numbers will be added when its benchmark finishes.
+concurrent sequences.
 
 For a model without a recipe, start from the one closest in size and architecture. Lower `TPB` if training runs out
 of memory (the batch size in tokens), and raise `GPU_UTIL` or lower `MAX_LEN` and `MAX_NUM_SEQS` if serving does.

@@ -58,6 +58,7 @@ families and templates no model trained on). Each prompt states a decision: cont
 
 | Model                 | Base, thinking off | Base, thinking on | **Plumbed** | Latency p50, thinking → plumbed |
 | --------------------- | ------------------ | ----------------- | ----------- | ------------------------------- |
+| Qwen3.5-27B           | 0.732              | 0.823             | **0.839**   | 69.7 s → 0.69 s                 |
 | Gemma 4 12B           | 0.736              | 0.718             | **0.826**   | 34.0 s → 2.2 s                  |
 | Qwen3.5-35B-A3B (MoE) | 0.720              | 0.787             | **0.810**   | 19.8 s → 0.78 s                 |
 | Qwen3.5-4B            | 0.667              | 0.720             | **0.801**   | 29.2 s → 0.24 s                 |
@@ -66,7 +67,7 @@ families and templates no model trained on). Each prompt states a decision: cont
 
 
 The plumbed model beats the base model without thinking by 8 to 13 points on every model. It beats thinking by 8 to
-11 points on Gemma 4 12B and Qwen3.5-4B, and matches it on the other three (the gap is within one standard error),
+11 points on Gemma 4 12B and Qwen3.5-4B, and matches it on the other four (the gap is within one standard error),
 at 15 to 120 times lower latency. The decision itself takes 20 to 100 ms; the rest of the latency is the model
 writing its reply. Settings for each run are in [recipes/](recipes/).
 
