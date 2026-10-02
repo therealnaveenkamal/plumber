@@ -130,9 +130,11 @@ conversation so far (cached)  +  "Which team? billing / technical / sales"  → 
 ```
 
 Training adds two small pieces and nothing else: the plumb itself, and an adapter that switches on only while the
-model reads a decision question. The model's own weights never change, so everything else it does (chat, reasoning,
-tools) works exactly as before. [Architecture](https://github.com/therealnaveenkamal/plumbify/blob/main/docs/architecture.md) explains each piece and where it lives in the
-code.
+model reads a decision question. The model's own weights never change. The server does add the `plumb_decide` tool
+and a one-line note to the system prompt, and listing a tool changes how a model reasons: these models think less
+with it, on small talk as much as on decisions.
+[Architecture](https://github.com/therealnaveenkamal/plumbify/blob/main/docs/architecture.md) explains each piece and
+where it lives in the code.
 
 ## Documentation
 

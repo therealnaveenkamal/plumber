@@ -29,13 +29,10 @@ from ...plumbed import plumb_dir
 
 logger = logging.getLogger("vllm.plumbify")  # inherits vLLM's log handlers and format
 
+# The policy only; how to read the answer is in the tool's own description (core/tool.py)
 PLUMB_NOTE = (
-    "You have a System 1 decision module attached, available as the plumb_decide tool. It makes routine "
-    "judgements (routing, classification, priority, yes/no checks, ratings) in one fast, calibrated step from this "
-    "same conversation, and it is more accurate at them than deciding in text. Delegate those judgements to it "
-    "instead of deciding them yourself: call plumb_decide with the question and the options, then continue using its "
-    "answer. Trust its choice when its `set` holds one option; when the set holds several, it is unsure, so reason it "
-    "through yourself."
+    "Hand routine judgements (routing, classification, priority, yes/no checks, ratings) to plumb_decide instead of "
+    "deciding them yourself: it is faster and more accurate. Then continue with its answer."
 )
 _SPECIAL = re.compile(r"<\|[^|>]+\|>")
 

@@ -5,6 +5,12 @@ project uses [semantic versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- A shorter system prompt. The note about the plumb is one sentence, and the `plumb_decide` description and schema
+  no longer repeat it: the plumb adds 198 tokens to the prompt instead of 314 (on Qwen3.5, plus the 232 tokens of
+  tool-calling instructions its chat template adds for any tool).
+
 ## [0.2.0] - 2026-10-01
 
 A rewrite. The plumb now lives inside the LLM, sharing its weights and KV cache, and vLLM serves it. In 0.1 it was a
