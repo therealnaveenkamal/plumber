@@ -65,7 +65,8 @@ apart. Every command takes `--help`.
 vllm serve plumbed-qwen3.5-9b
 ```
 
-No flags or environment variables are needed.
+No flags or environment variables are needed. Ready-made plumbed models for six open models are in the
+[Plumbify collection](https://huggingface.co/collections/totum-labs/plumbify); `vllm serve totum-labs/Qwen3.5-9B-plumb` works the same way.
 
 ### Share a plumbed model
 

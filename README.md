@@ -6,6 +6,7 @@
 
 [![CI](https://github.com/therealnaveenkamal/plumbify/actions/workflows/ci.yml/badge.svg)](https://github.com/therealnaveenkamal/plumbify/actions/workflows/ci.yml)
 [![PyPI](https://img.shields.io/pypi/v/plumbify.svg)](https://pypi.org/project/plumbify/)
+[![Models](https://img.shields.io/badge/%F0%9F%A4%97%20Models-totum--labs%2Fplumbify-yellow.svg)](https://huggingface.co/collections/totum-labs/plumbify)
 [![License](https://img.shields.io/badge/License-Apache%202.0-green.svg)](https://github.com/therealnaveenkamal/plumbify/blob/main/LICENSE)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://github.com/therealnaveenkamal/plumbify/blob/main/pyproject.toml)
 [![vLLM](https://img.shields.io/badge/vLLM-0.30.0-purple.svg)](https://github.com/vllm-project/vllm)
@@ -57,7 +58,14 @@ plugin is tested against.
 pip install "plumbify[vllm]"
 ```
 
-Train a plumb on a frozen base model, then serve the result:
+To try it without training, serve one of the six plumbed models in the [Plumbify collection](https://huggingface.co/collections/totum-labs/plumbify) on the
+Hugging Face Hub:
+
+```bash
+vllm serve totum-labs/Qwen3.5-9B-plumb --max-model-len 32768
+```
+
+Or train a plumb on a frozen base model, then serve the result:
 
 ```bash
 plumbify train --base Qwen/Qwen3.5-9B \
@@ -65,7 +73,7 @@ plumbify train --base Qwen/Qwen3.5-9B \
 vllm serve plumbed-qwen3.5-9b
 ```
 
-Ask it a decision through the standard OpenAI API:
+Ask it a decision through the standard OpenAI API (for a model from the Hub, `model` is its repo id):
 
 ```bash
 curl -s localhost:8000/v1/chat/completions \
