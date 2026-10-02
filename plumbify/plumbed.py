@@ -81,7 +81,6 @@ def package(
     out: str,
     base: str | None = None,
     copy: bool = False,
-    metrics: dict | None = None,
 ) -> str:
     """Write the plumbed model directory for a trained plumb (``plumbify train-head`` output) on its base."""
     from .artifact import read_spec
@@ -121,7 +120,7 @@ def package(
         p = os.path.join(plumb_dir, name)
         if os.path.exists(p):
             shutil.copyfile(p, os.path.join(out, name))
-    write_card(out, dev=metrics)
+    write_card(out)
     return out
 
 
@@ -204,14 +203,13 @@ def card(
     repo: str | None = None,
     adapter: dict | None = None,
     head_params: int | None = None,
-    dev: dict | None = None,
     bench: dict | None = None,
     train: dict | None = None,
     license_name: str = "apache-2.0",
     license_link: str | None = None,
 ) -> str:
-    """The model card (README.md) of a plumbed model. ``bench`` is a scripts/bench_s1_vs_s2.py summary, ``dev`` the
-    training run's metrics.json, ``train`` free-form facts about the run (rows, minutes, hardware)."""
+    """The model card (README.md) of a plumbed model. ``bench`` is a scripts/bench_s1_vs_s2.py summary, ``train``
+    free-form facts about the run (rows, minutes, hardware)."""
     name = (repo or base).split("/")[-1]
     ref = repo or "path/to/" + name
     conf = spec.calibration.conformal
@@ -298,20 +296,6 @@ def card(
                 f"| {label} | {by(off_m, k)} | {by(off_p, k)} | {by(on_m, k)} | {by(on_p, k)} |"
                 for k, label in EVAL_SETS.items()
             ],
-            "",
-            "Latency is the full reply on one A100 80 GB. The plumbed model's answer is the final answer in the",
-            "response's `plumb` field: the plumb's choice when its top probability is at least 0.7, the model's own",
-            "stated choice otherwise. With 447 decisions, one standard error is about 2 points.",
-        ]
-
-    if dev:
-        d, c = dev.get("dev_calibrated") or {}, dev.get("conformal_dev") or {}
-        out += [
-            "",
-            "On the 2,549-row development set after calibration: accuracy "
-            f"{_pct(d.get('accuracy'))}, expected calibration error {_pct(d.get('ece'))}, conformal sets cover the right "
-            f"option {100 * c.get('coverage', 0):.0f}% of the time and hold a single option for "
-            f"{100 * c.get('singleton_rate', 0):.0f}% of decisions.",
         ]
 
     out += [

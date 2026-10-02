@@ -56,7 +56,7 @@ flowchart LR
 
 `plumbify train` runs `train-head` and then `package`; both are also available as commands on their own. The
 training directory (`<out>.train`) keeps `metrics.json` and `dev_preds.jsonl`, which `scripts/vllm_check.py` uses
-as its reference. `package` writes the dev-set metrics into the directory's model card.
+as its reference.
 
 The output is an ordinary model directory:
 

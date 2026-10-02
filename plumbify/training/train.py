@@ -11,7 +11,6 @@ directory (plumbify/plumbed.py). The base weights are never modified.
 from __future__ import annotations
 
 import argparse
-import json
 import os
 
 from ..plumbed import package
@@ -73,10 +72,8 @@ def main(argv=None):
         args += ["--limit", str(a.limit)]
     print(f"[plumbify] 1/2 train + calibrate: {' '.join(args)}", flush=True)
     train_head.main(args)
-    metrics_path = os.path.join(work, "metrics.json")
-    metrics = json.load(open(metrics_path)) if os.path.exists(metrics_path) else None
     print(f"[plumbify] 2/2 package -> {a.out}", flush=True)
-    package(os.path.join(work, "final"), a.out, a.base, copy=a.copy, metrics=metrics)
+    package(os.path.join(work, "final"), a.out, a.base, copy=a.copy)
     print(f"[plumbify] done. Serve it with:\n  vllm serve {a.out}", flush=True)
 
 

@@ -70,9 +70,9 @@ No flags or environment variables are needed. Ready-made plumbed models for six 
 
 ### Share a plumbed model
 
-Every plumbed model directory includes a model card (`README.md`) with the plumb's settings and its results on
-`--dev`. To publish one, train it with `--copy` so the base weights are real files rather than links into your
-Hugging Face cache, then upload the directory:
+Every plumbed model directory includes a model card (`README.md`) describing the plumb. To publish one, train it
+with `--copy` so the base weights are real files rather than links into your Hugging Face cache, then upload the
+directory:
 
 ```bash
 hf upload your-org/Qwen3.5-9B-plumb plumbed-qwen3.5-9b
