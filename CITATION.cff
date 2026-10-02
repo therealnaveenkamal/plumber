@@ -5,8 +5,8 @@ title: "Plumbify: a System 1 decision branch for open language models"
 authors:
   - family-names: Kamalakannan
     given-names: Naveenraj
-version: 0.2.0
-date-released: 2026-10-01
+version: 0.2.1
+date-released: 2026-10-02
 license: Apache-2.0
 repository-code: "https://github.com/therealnaveenkamal/plumbify"
 keywords:

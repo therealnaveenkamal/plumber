@@ -5,6 +5,8 @@ project uses [semantic versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-10-02
+
 ### Changed
 
 - A shorter system prompt. The note about the plumb is one sentence, and the `plumb_decide` description and schema
