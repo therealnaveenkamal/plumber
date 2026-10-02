@@ -5,6 +5,18 @@ project uses [semantic versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-10-02
+
+### Added
+
+- `plumbify chat`: a live terminal chat with a running server that shows each decision as the model hands it to its
+  plumb. It replaces `scripts/demo_chat.py`, so trying a model no longer needs a clone. Thinking is on by default
+  (`--no-think` turns it off) and replies get up to 8,192 tokens.
+
+### Changed
+
+- Model cards are shorter: no latency footnote and no development-set paragraph. They now show `plumbify chat`.
+
 ## [0.2.1] - 2026-10-02
 
 ### Changed

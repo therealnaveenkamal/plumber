@@ -57,6 +57,7 @@ apart. Every command takes `--help`.
 | `plumbify train` | Train a plumb, calibrate it on `--dev` and write the plumbed model directory |
 | `plumbify train-head` | Train and calibrate a plumb only; writes `<out>/final`, `dev_preds.jsonl` and `metrics.json` |
 | `plumbify package <plumb> <out>` | Combine a trained plumb with its base model into a plumbed model directory |
+| `plumbify chat` | Chat with a running server and watch each decision as it happens |
 | `plumbify eval-head` | Evaluate a plumb on labelled rows, or the base model zero-shot with `--zeroshot` |
 
 ## Serve
@@ -157,7 +158,8 @@ r = client.chat.completions.create(
 print(r.model_extra["plumb"]["answer"])
 ```
 
-`python scripts/demo_chat.py` opens a live chat that shows each decision as it happens.
+`plumbify chat` opens a live chat with the server that shows each decision as it happens. Thinking is on by default
+(`--no-think` or `/think` turns it off), and `--no-plumb` chats with the base model alone for comparison.
 
 ## Check a model
 

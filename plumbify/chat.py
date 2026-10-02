@@ -1,9 +1,9 @@
 """Live chat with a plumbed model over the standard /v1/chat/completions: the model generates (System 2) and hands
 routine decisions to its plumb (System 1), which answers from the same KV cache. Decisions appear inline.
 
-  python scripts/demo_chat.py                          # server on localhost:8000
-  python scripts/demo_chat.py --think --url http://host:8000
-  python scripts/demo_chat.py --no-plumb --think       # the normal model, for comparison
+  plumbify chat                              # a server on localhost:8000, thinking on
+  plumbify chat --url http://host:8000 --no-think
+  plumbify chat --no-plumb                   # the same model without its plumb, for comparison
 
 Type \\n in a message for a line break (e.g. a question followed by bulleted options).
 
@@ -227,15 +227,29 @@ def turn(
     return new
 
 
-def main():
-    ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
-    ap.add_argument("--url", default="http://localhost:8000")
-    ap.add_argument("--system", default=DEFAULT_SYSTEM)
-    ap.add_argument("--think", action="store_true", help="start with reasoning on")
+def parser() -> argparse.ArgumentParser:
+    ap = argparse.ArgumentParser(
+        description="Chat with a served plumbed model and watch each decision as it happens."
+    )
+    ap.add_argument(
+        "--url", default="http://localhost:8000", help="the vLLM server (default: %(default)s)"
+    )
+    ap.add_argument("--system", default=DEFAULT_SYSTEM, help="system prompt")
+    ap.add_argument(
+        "--no-think",
+        dest="think",
+        action="store_false",
+        help="start with reasoning off (it is on by default; /think toggles it)",
+    )
     ap.add_argument(
         "--trust", type=float, default=0.7, help="System 1 decides when at least this confident"
     )
-    ap.add_argument("--max_tokens", type=int, default=1500)
+    ap.add_argument(
+        "--max_tokens",
+        type=int,
+        default=8192,
+        help="reply budget, thinking included (default: %(default)s)",
+    )
     ap.add_argument("--plain", action="store_true", help="no colours")
     ap.add_argument(
         "--no-plumb",
@@ -247,7 +261,11 @@ def main():
         action="store_true",
         help="with --no-plumb: list an unrelated tool, so the prompt is shaped like the plumbed model's",
     )
-    a = ap.parse_args()
+    return ap
+
+
+def main(argv=None):
+    a = parser().parse_args(argv)
     c = Colors(sys.stdout.isatty() and not a.plain)
     opts = {
         "think": a.think,

@@ -59,11 +59,18 @@ pip install "plumbify[vllm]"
 ```
 
 To try it without training, serve one of the six plumbed models in the [Plumbify collection](https://huggingface.co/collections/totum-labs/plumbify) on the
-Hugging Face Hub:
+Hugging Face Hub, then chat with it in a second terminal:
 
 ```bash
 vllm serve totum-labs/Qwen3.5-9B-plumb --max-model-len 32768
 ```
+```bash
+plumbify chat
+```
+
+The chat shows each decision as the model hands it to its plumb: the question, the probability of every option and
+how long it took. Try a message that states a decision, such as
+`Charged twice.\n\nWhich team?\n- billing\n- technical\n- sales` (type `\n` for a line break).
 
 Or train a plumb on a frozen base model, then serve the result:
 
@@ -92,7 +99,7 @@ decided (`system1` is the plumb), and with what probability:
 ```
 
 The [guide](https://github.com/therealnaveenkamal/plumbify/blob/main/docs/guide.md) covers the training data format, the request options and the response fields.
-`python scripts/demo_chat.py` opens a live chat that shows each decision as the model hands it off.
+`plumbify chat` opens a live chat that shows each decision as the model hands it off.
 
 ## Results
 

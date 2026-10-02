@@ -6,7 +6,7 @@
 In Python, ``System1`` runs a plumb with transformers (training, evaluation, the reference implementation).
 """
 
-__version__ = "0.2.1"
+__version__ = "0.3.0"
 
 
 def __getattr__(name):  # System1 pulls in torch and transformers: load it on first use

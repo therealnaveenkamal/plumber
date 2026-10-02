@@ -8,7 +8,6 @@ root. Each script's docstring has the full usage, and each takes `--help`.
 | [`vllm_check.py`](vllm_check.py) | GPU, vLLM | Checks a plumbed model in vLLM against the transformers reference: decision parity, prefix-cache reuse, unchanged generation and the `plumb_decide` loop. Run it after training and after any vLLM upgrade. |
 | [`bench_s1_vs_s2.py`](bench_s1_vs_s2.py) | a running server | The benchmark behind the README results: the model alone (thinking off and on, with and without a tool in the prompt), the plumb alone, and the plumbed model, on the same server. Writes `summary.json`. |
 | [`bench_report.py`](bench_report.py) | `summary.json` files | Builds one results table across models from several benchmark runs. |
-| [`demo_chat.py`](demo_chat.py) | a running server | A live terminal chat that shows each decision as the model hands it to its plumb. `--no-plumb` chats with the base model alone, for comparison. |
 
 ## Typical order
 
@@ -26,3 +25,5 @@ python scripts/bench_report.py qwen3.5-9b=runs/bench-9b gemma-4-12b=runs/bench-g
 ```
 
 The [recipes](../recipes/README.md) run steps 1 and 2 for you.
+
+The live chat that used to live here is now part of the package: `plumbify chat`.

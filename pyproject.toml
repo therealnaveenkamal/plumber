@@ -4,14 +4,14 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "plumbify"
-version = "0.2.1"
+version = "0.3.0"
 description = "Give an open LLM a fast, calibrated decision path and serve it natively with vLLM."
 readme = "README.md"
 license = "Apache-2.0"
 license-files = ["LICENSE"]
 requires-python = ">=3.10"
 authors = [{name = "Naveenraj Kamalakannan"}]
-dependencies = ["torch>=2.6", "transformers>=5.17", "peft>=0.21", "accelerate>=1.9", "huggingface_hub>=0.30", "safetensors", "sentencepiece"]
+dependencies = ["torch>=2.6", "transformers>=5.17", "peft>=0.21", "accelerate>=1.9", "huggingface_hub>=0.30", "safetensors", "sentencepiece", "httpx>=0.27"]
 
 keywords = ["vllm", "vllm-plugin", "llm", "lora", "decision-making", "calibration", "inference"]
 classifiers = [

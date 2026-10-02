@@ -153,6 +153,7 @@ a warning. Upgrading is described in [CONTRIBUTING.md](../CONTRIBUTING.md#upgrad
 ```
 plumbify/
   cli.py                 `plumbify <command>` dispatcher
+  chat.py                `plumbify chat`: a terminal chat that shows each decision as it happens
   core/                  shared by training and serving
     row.py               the decision row
     render.py            decision rendering in the model's chat format
@@ -175,6 +176,6 @@ plumbify/
   calibration.py         temperature scaling and split-conformal sets
   metrics.py             accuracy, NLL, Brier, ECE, coverage
 recipes/                 one tested script per model, and the runner they share
-scripts/                 benchmark, results table, vLLM parity check, live chat
+scripts/                 benchmark, results table, vLLM parity check
 tests/                   CPU tests on a tiny random hybrid model
 ```

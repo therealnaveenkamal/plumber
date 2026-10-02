@@ -17,6 +17,10 @@ COMMANDS = {
         "train and calibrate a plumb only (the first step of train)",
     ),
     "eval-head": ("plumbify.training.eval_head", "evaluate a plumb, or the base model zero-shot"),
+    "chat": (
+        "plumbify.chat",
+        "chat with a served plumbed model and watch each decision as it happens",
+    ),
 }
 
 
