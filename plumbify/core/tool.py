@@ -15,22 +15,20 @@ def tool_schema() -> dict:
         "function": {
             "name": PLUMB_TOOL,
             "description": (
-                "Fast, calibrated decision about the conversation so far (routing, classification, yes/no "
-                "checks, ratings). Returns the chosen option, probabilities, and the set of options that "
-                "cannot be ruled out. Use it for routine judgements; reason yourself when the set has "
-                "more than one option. When the conversation already lists the question and options, copy "
-                "them exactly: the same question wording and every option name, unchanged."
+                "Your decision module for routine judgements about this conversation. Returns the choice, "
+                "probabilities, and `set` (the options it can't rule out): trust it when `set` has one "
+                "option, else reason it through. Copy a question and options already in the conversation "
+                "exactly."
             ),
             "parameters": {
                 "type": "object",
                 "required": ["question", "options"],
                 "properties": {
-                    "question": {"type": "string", "description": "the decision to make"},
+                    "question": {"type": "string"},
                     "type": {
                         "type": "string",
                         "enum": ["choice", "noul", "score"],
-                        "default": "choice",
-                    },
+                    },  # default: choice
                     "options": {
                         "type": "array",
                         "minItems": 2,
